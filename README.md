@@ -66,7 +66,7 @@ Server imports use explicit `.js` extensions (Node ESM), so they also resolve on
 
 ## Deploying to Vercel
 
-`vercel.json` sets the build (`yarn vercel-build`, which runs the tests before building). Deploys are done with the [Vercel CLI](https://vercel.com/docs/cli).
+`vercel.json` sets the build (`yarn build:vercel`, which runs the tests before building). Deploys are done with the [Vercel CLI](https://vercel.com/docs/cli).
 
 ### One-time setup
 

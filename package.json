@@ -12,7 +12,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "vercel-build": "yarn test && yarn build",
+    "build:vercel": "yarn test && yarn build",
     "preview": "vite preview",
     "lint": "oxlint",
     "typecheck": "tsc -b",

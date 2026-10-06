@@ -1,4 +1,12 @@
 {
+  /* Solution file: `tsc -b` checks the referenced projects, which ignore these options.
+     Vercel's function builder type-checks api/ against this file, so give it the server's runtime settings. */
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "skipLibCheck": true
+  },
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
