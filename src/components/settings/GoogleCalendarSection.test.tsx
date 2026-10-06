@@ -51,9 +51,10 @@ describe('GoogleCalendarSection', () => {
   it('shows pending conflicts and pull errors', async () => {
     const { user } = setup(
       { ...connected, lastPullAt: new Date().toISOString(), pendingConflicts: 2 },
-      { 'POST /api/sync/pull': () => ({ status: 502, body: { error: 'Google sign-in expired or was revoked' } }) },
+      { 'POST /api/sync': () => ({ status: 502, body: { error: 'Google sign-in expired or was revoked' } }) },
     );
     expect(await screen.findByText(/2 entries were changed in both places/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reconcile' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Sync now' }));
     expect(await screen.findByText('Google sign-in expired or was revoked')).toBeInTheDocument();
   });

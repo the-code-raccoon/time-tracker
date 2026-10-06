@@ -5,6 +5,7 @@ import type { TimeEntry } from '../../shared/types';
 import { CATEGORIES, mockApi, requestsTo } from '../test/mockApi';
 import { renderWithProviders } from '../test/render';
 import { AppShell } from './AppShell';
+import { ReconcileDialog } from './ReconcileDialog';
 
 const NOW = new Date('2026-10-07T12:00:00'); // Wednesday, local (America/Toronto in tests)
 
@@ -193,11 +194,17 @@ describe('AppShell', () => {
     it('pulls and shows a summary', async () => {
       const user = userEvent.setup();
       const fetchMock = mockApi({
-        'POST /api/sync/pull': () => ({ status: 200, body: { full: true, fetched: 2431, imported: 2431, updated: 0, deleted: 0, conflicts: 0, skipped: 0 } }),
+        'POST /api/sync': () => ({
+          status: 200,
+          body: {
+            pull: { full: false, fetched: 3, imported: 2, updated: 1, deleted: 0, conflicts: 0, skipped: 0 },
+            push: { created: 1, updated: 0, deleted: 0, conflicts: 0, remaining: 0, failed: [] },
+          },
+        }),
       });
       renderWithProviders(<AppShell onOpenSettings={() => {}} onLogout={() => {}} />);
       await user.click(screen.getByRole('button', { name: 'Sync with Google Calendar' }));
-      expect(await screen.findByText('Imported 2,431 entries')).toBeInTheDocument();
+      expect(await screen.findByText('Synced 3 from Google, 1 to Google')).toBeInTheDocument();
       // entries are reloaded after the pull
       await waitFor(() => expect(requestsTo(fetchMock, 'GET', '/api/entries').length).toBeGreaterThan(1));
     });
@@ -205,13 +212,98 @@ describe('AppShell', () => {
     it('offers Settings when Google is not connected', async () => {
       const user = userEvent.setup();
       const onOpenSettings = vi.fn();
-      mockApi({ 'POST /api/sync/pull': () => ({ status: 409, body: { error: 'Connect Google Calendar in Settings first' } }) });
+      mockApi({ 'POST /api/sync': () => ({ status: 409, body: { error: 'Connect Google Calendar in Settings first' } }) });
       renderWithProviders(<AppShell onOpenSettings={onOpenSettings} onLogout={() => {}} />);
       await user.click(screen.getByRole('button', { name: 'Sync with Google Calendar' }));
       const snackbar = await screen.findByRole('alert');
       expect(snackbar).toHaveTextContent("Google Calendar isn't connected");
       await user.click(within(snackbar).getByRole('button', { name: 'Settings' }));
       expect(onOpenSettings).toHaveBeenCalled();
+    });
+  });
+
+  describe('reconcile (SYNC-7)', () => {
+    const status = { configured: true, connected: true, email: null, calendarId: 'cal', lastPullAt: NOW.toISOString(), pendingConflicts: 1 };
+    const conflict = {
+      entryId: '20000000-0000-4000-8000-000000000001',
+      detectedAt: NOW.toISOString(),
+      app: { deleted: false, title: 'deep work', start: new Date('2026-10-05T09:00').toISOString(), end: new Date('2026-10-05T17:00').toISOString(), categoryId: null, notes: null },
+      google: { deleted: false, title: 'work', start: new Date('2026-10-05T10:00').toISOString(), end: new Date('2026-10-05T17:00').toISOString(), categoryId: null, notes: null, rawTitle: 'work' },
+    };
+    const synced = { pull: { full: false, fetched: 0, imported: 0, updated: 0, deleted: 0, conflicts: 0, skipped: 0 }, push: { created: 0, updated: 1, deleted: 0, conflicts: 0, remaining: 0, failed: [] } };
+
+    it('shows a badge, compares both sides and keeps the chosen one, then syncs', async () => {
+      const user = userEvent.setup();
+      let pending = [conflict];
+      const fetchMock = mockApi({
+        'GET /api/google/status': () => ({ status: 200, body: { ...status, pendingConflicts: pending.length } }),
+        'GET /api/sync/conflicts': () => ({ status: 200, body: pending }),
+        'POST /api/sync/resolve': () => {
+          pending = [];
+          return { status: 200, body: { resolved: 1 } };
+        },
+        'POST /api/sync': () => ({ status: 200, body: { ...synced, pull: { ...synced.pull, conflicts: 0 } } }),
+      });
+      renderWithProviders(<AppShell onOpenSettings={() => {}} onLogout={() => {}} />);
+
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Sync with Google Calendar' })).toHaveTextContent('1'));
+      await user.click(screen.getByRole('button', { name: 'Sync with Google Calendar' }));
+      await user.click(within(await screen.findByRole('alert')).getByRole('button', { name: 'Reconcile' }));
+
+      const dialog = await screen.findByRole('dialog', { name: 'Reconcile changes' });
+      const card = await within(dialog).findByRole('region', { name: 'deep work' });
+      const differing = [...card.querySelectorAll('[data-differs]')].map((el) => el.querySelector('dt')?.textContent);
+      expect(differing).toEqual(['Title', 'When', 'Title', 'When']);
+
+      await user.click(within(card).getByRole('button', { name: "Keep this app's" }));
+      await waitFor(() => expect(requestsTo(fetchMock, 'POST', '/api/sync/resolve')).toHaveLength(1));
+      expect(JSON.parse(String(requestsTo(fetchMock, 'POST', '/api/sync/resolve')[0][1]?.body))).toEqual({
+        resolutions: [{ entryId: conflict.entryId, choice: 'app' }],
+      });
+      expect(await within(dialog).findByText('Synced 1 to Google')).toBeInTheDocument();
+      expect(await within(dialog).findByText(/Nothing to reconcile/)).toBeInTheDocument();
+    });
+
+    it('offers Delete / Keep when one side deleted the entry', async () => {
+      const user = userEvent.setup();
+      const deletedInGoogle = { ...conflict, google: { deleted: true, title: null, start: null, end: null, categoryId: null, notes: null } };
+      const fetchMock = mockApi({
+        'GET /api/google/status': () => ({ status: 200, body: status }),
+        'GET /api/sync/conflicts': () => ({ status: 200, body: [deletedInGoogle] }),
+        'POST /api/sync/resolve': () => ({ status: 200, body: { resolved: 1 } }),
+        'POST /api/sync': () => ({ status: 200, body: synced }),
+      });
+      renderWithProviders(<ReconcileDialog onClose={() => {}} />);
+      const card = await screen.findByRole('region', { name: 'deep work' });
+      expect(within(card).getByText('Deleted')).toBeInTheDocument();
+      expect(within(card).queryByRole('button', { name: /Edit and merge/ })).not.toBeInTheDocument();
+      await user.click(within(card).getByRole('button', { name: 'Delete' }));
+      await waitFor(() => expect(requestsTo(fetchMock, 'POST', '/api/sync/resolve')).toHaveLength(1));
+      expect(JSON.parse(String(requestsTo(fetchMock, 'POST', '/api/sync/resolve')[0][1]?.body)).resolutions[0].choice).toBe('google');
+    });
+
+    it('edit and merge saves the merged entry, then keeps it', async () => {
+      const user = userEvent.setup();
+      const fetchMock = mockApi({
+        'GET /api/google/status': () => ({ status: 200, body: status }),
+        'GET /api/sync/conflicts': () => ({ status: 200, body: [conflict] }),
+        'PATCH /api/entries/*': () => ({ status: 200, body: entry({}) }),
+        'POST /api/sync/resolve': () => ({ status: 200, body: { resolved: 1 } }),
+        'POST /api/sync': () => ({ status: 200, body: synced }),
+      });
+      renderWithProviders(<ReconcileDialog onClose={() => {}} />);
+      await user.click(await screen.findByRole('button', { name: 'Edit and merge…' }));
+      const editor = screen.getByRole('dialog', { name: 'Edit entry' });
+      const start = within(editor).getByLabelText('Start time');
+      await user.clear(start);
+      await user.type(start, '10:00am{Enter}');
+      await user.click(within(editor).getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => expect(requestsTo(fetchMock, 'POST', '/api/sync/resolve')).toHaveLength(1));
+      expect(JSON.parse(String(requestsTo(fetchMock, 'PATCH', `/api/entries/${conflict.entryId}`)[0][1]?.body))).toMatchObject({
+        title: 'deep work',
+        start: new Date('2026-10-05T10:00').toISOString(),
+      });
     });
   });
 

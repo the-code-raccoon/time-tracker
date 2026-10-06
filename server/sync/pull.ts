@@ -16,7 +16,13 @@ type LinkedEntry = {
   last_synced_hash: string | null;
   gcal_remote_hash: string | null;
   deleted_at: Date | null;
+  last_synced_at: Date | null;
 };
+
+/** Deleted in the app and not yet pushed (a deletion that came from Google has deleted_at <= last_synced_at). */
+export function isPendingDelete(entry: { deleted_at: Date | null; last_synced_at: Date | null }): boolean {
+  return entry.deleted_at !== null && (entry.last_synced_at === null || new Date(entry.deleted_at) > new Date(entry.last_synced_at));
+}
 
 // Rows go to Postgres as one JSON text parameter (`$1::text::jsonb`) so each batch is a single statement.
 const asJson = (rows: unknown[]) => JSON.stringify(rows);
@@ -24,7 +30,7 @@ const asJson = (rows: unknown[]) => JSON.stringify(rows);
 const ENTRY_COLUMNS = `title text, raw_title text, starts_at timestamptz, ends_at timestamptz, category_id uuid, notes text,
   gcal_event_id text, gcal_etag text, gcal_color_id text, gcal_remote_hash text`;
 
-async function loadContext(db: Db): Promise<{ aliases: Map<string, string>; colours: ColourMap }> {
+export async function loadContext(db: Db): Promise<{ aliases: Map<string, string>; colours: ColourMap }> {
   const aliases = new Map(
     (await db.query<{ alias: string; title: string }>('select alias, title from title_aliases')).map((r) => [r.alias, r.title]),
   );
@@ -70,15 +76,15 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
   const linked = new Map(
     (
       await db.query<LinkedEntry>(
-        `select id, gcal_event_id, app_hash, last_synced_hash, gcal_remote_hash, deleted_at from time_entries
+        `select id, gcal_event_id, app_hash, last_synced_hash, gcal_remote_hash, deleted_at, last_synced_at from time_entries
           where gcal_event_id in (select jsonb_array_elements_text($1::text::jsonb))`,
         [asJson(ids)],
       )
     ).map((row) => [row.gcal_event_id, row]),
   );
 
-  const inserts: EntryFields[] = [];
-  const updates: (EntryFields & { id: string })[] = [];
+  const inserts: (EntryFields & { gcal_event: GoogleEvent })[] = [];
+  const updates: (EntryFields & { id: string; gcal_event: GoogleEvent })[] = [];
   const deletes: { id: string; hash: string }[] = [];
   const seen: { id: string; hash: string }[] = [];
   const conflicts: { entry_id: string; remote_event: GoogleEvent }[] = [];
@@ -89,7 +95,7 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
     const entry = linked.get(event.id);
 
     if (!entry) {
-      if (result.kind === 'entry') inserts.push(result.fields);
+      if (result.kind === 'entry') inserts.push({ ...result.fields, gcal_event: event });
       else if (result.kind === 'skip') skipped++;
       continue;
     }
@@ -97,13 +103,14 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
     const hash = remoteHash(event);
     if (entry.gcal_remote_hash === hash) continue; // nothing changed in Google
 
-    const changedInApp = entry.deleted_at !== null || entry.app_hash !== entry.last_synced_hash;
+    const deletedInApp = isPendingDelete(entry);
+    const changedInApp = deletedInApp || (entry.deleted_at === null && entry.app_hash !== entry.last_synced_hash);
     const removedInGoogle = result.kind !== 'entry';
 
     if (!changedInApp) {
       if (removedInGoogle) deletes.push({ id: entry.id, hash });
-      else updates.push({ ...result.fields, id: entry.id });
-    } else if (removedInGoogle && entry.deleted_at !== null) {
+      else updates.push({ ...result.fields, id: entry.id, gcal_event: event }); // also revives an entry Google had deleted
+    } else if (removedInGoogle && deletedInApp) {
       seen.push({ id: entry.id, hash }); // deleted on both sides: nothing to reconcile
     } else {
       conflicts.push({ entry_id: entry.id, remote_event: event });
@@ -112,9 +119,9 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
 
   if (inserts.length > 0) {
     await db.query(
-      `insert into time_entries (title, raw_title, starts_at, ends_at, category_id, notes, gcal_event_id, gcal_etag, gcal_color_id, gcal_remote_hash)
-       select title, raw_title, starts_at, ends_at, category_id, notes, gcal_event_id, gcal_etag, gcal_color_id, gcal_remote_hash
-         from jsonb_to_recordset($1::text::jsonb) as x(${ENTRY_COLUMNS})
+      `insert into time_entries (title, raw_title, starts_at, ends_at, category_id, notes, gcal_event_id, gcal_etag, gcal_color_id, gcal_remote_hash, gcal_event)
+       select title, raw_title, starts_at, ends_at, category_id, notes, gcal_event_id, gcal_etag, gcal_color_id, gcal_remote_hash, gcal_event
+         from jsonb_to_recordset($1::text::jsonb) as x(${ENTRY_COLUMNS}, gcal_event jsonb)
        on conflict (gcal_event_id) do nothing`,
       [asJson(inserts)],
     );
@@ -123,8 +130,8 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
     await db.query(
       `update time_entries e set title = x.title, raw_title = x.raw_title, starts_at = x.starts_at, ends_at = x.ends_at,
               category_id = x.category_id, notes = x.notes, gcal_etag = x.gcal_etag, gcal_color_id = x.gcal_color_id,
-              gcal_remote_hash = x.gcal_remote_hash, updated_at = now()
-         from jsonb_to_recordset($1::text::jsonb) as x(id uuid, ${ENTRY_COLUMNS})
+              gcal_remote_hash = x.gcal_remote_hash, gcal_event = x.gcal_event, deleted_at = null, updated_at = now()
+         from jsonb_to_recordset($1::text::jsonb) as x(id uuid, ${ENTRY_COLUMNS}, gcal_event jsonb)
         where e.id = x.id`,
       [asJson(updates)],
     );
@@ -146,12 +153,13 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
     );
   }
 
-  // NORM-8, first import only: an activity seen in several colours takes the category of its most recent entry.
+  // NORM-8, first import only: an activity seen in several colours takes the category of its most recent entry
+  // whose colour maps to a category (a one-off unmapped colour must not wipe the category of every entry).
   if (firstImport) {
     await db.query(
       `with latest as (
          select distinct on (title) title, category_id from time_entries
-          where deleted_at is null and gcal_event_id is not null
+          where deleted_at is null and gcal_event_id is not null and category_id is not null
           order by title, starts_at desc
        )
        update time_entries e set category_id = latest.category_id
@@ -165,7 +173,7 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
   const synced = [...inserts.map((i) => i.gcal_event_id), ...updates.map((u) => u.gcal_event_id)];
   const syncedIds = [...deletes, ...seen].map((d) => d.id);
   await db.query(
-    `update time_entries set last_synced_hash = app_hash, last_synced_at = now()
+    `update time_entries set last_synced_hash = app_hash, last_synced_category_id = category_id, last_synced_at = now()
       where gcal_event_id in (select jsonb_array_elements_text($1::text::jsonb))
          or id in (select (jsonb_array_elements_text($2::text::jsonb))::uuid)
          or ($3::boolean and gcal_event_id is not null and deleted_at is null and last_synced_hash is null)`,

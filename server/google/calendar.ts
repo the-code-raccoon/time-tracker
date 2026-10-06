@@ -65,3 +65,74 @@ export async function listAllEvents(
     return { events, nextSyncToken: page.nextSyncToken, calendarName };
   }
 }
+
+/** Fields the app writes. `null` clears a field (e.g. colorId → calendar default). */
+export type EventWrite = {
+  summary?: string;
+  description?: string | null;
+  colorId?: string | null;
+  start?: { dateTime: string };
+  end?: { dateTime: string };
+};
+
+/** The event changed in Google since we last saw it (If-Match failed), or is gone. */
+export class EventChangedError extends Error {
+  readonly gone: boolean;
+
+  constructor(gone: boolean) {
+    super(gone ? 'Event no longer exists in Google Calendar' : 'Event changed in Google Calendar');
+    this.gone = gone;
+  }
+}
+
+async function eventRequest(accessToken: string, calendarId: string, path: string, init: RequestInit & { etag?: string | null } = {}) {
+  const { etag, ...rest } = init;
+  const headers = new Headers(rest.headers);
+  headers.set('authorization', `Bearer ${accessToken}`);
+  if (rest.body) headers.set('content-type', 'application/json');
+  if (etag) headers.set('if-match', etag);
+  const response = await fetch(`${API}/calendars/${encodeURIComponent(calendarId)}/events${path}`, { ...rest, headers });
+  if (response.status === 412) throw new EventChangedError(false);
+  if (response.status === 404 || response.status === 410) throw new EventChangedError(true);
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+    throw new GoogleApiError(response.status, body.error?.message ?? `Google Calendar request failed (${response.status})`);
+  }
+  return response;
+}
+
+export async function insertEvent(accessToken: string, calendarId: string, event: EventWrite): Promise<GoogleEvent> {
+  const response = await eventRequest(accessToken, calendarId, '', { method: 'POST', body: JSON.stringify(event) });
+  return (await response.json()) as GoogleEvent;
+}
+
+/** Patches an event only if it is unchanged since `etag` (otherwise EventChangedError). */
+export async function patchEvent(accessToken: string, calendarId: string, eventId: string, event: EventWrite, etag: string | null): Promise<GoogleEvent> {
+  const response = await eventRequest(accessToken, calendarId, `/${encodeURIComponent(eventId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(event),
+    etag,
+  });
+  return (await response.json()) as GoogleEvent;
+}
+
+/** Deletes an event. Already gone counts as success. */
+export async function deleteEvent(accessToken: string, calendarId: string, eventId: string, etag: string | null): Promise<void> {
+  try {
+    await eventRequest(accessToken, calendarId, `/${encodeURIComponent(eventId)}`, { method: 'DELETE', etag });
+  } catch (error) {
+    if (error instanceof EventChangedError && error.gone) return;
+    throw error;
+  }
+}
+
+/** The current event, or a cancelled stub if it no longer exists. */
+export async function getEvent(accessToken: string, calendarId: string, eventId: string): Promise<GoogleEvent> {
+  try {
+    const response = await eventRequest(accessToken, calendarId, `/${encodeURIComponent(eventId)}`);
+    return (await response.json()) as GoogleEvent;
+  } catch (error) {
+    if (error instanceof EventChangedError && error.gone) return { id: eventId, status: 'cancelled' };
+    throw error;
+  }
+}

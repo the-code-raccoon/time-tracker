@@ -107,12 +107,24 @@ export async function listTitleSuggestions(db: Db, limit = 500): Promise<TitleSu
   return rows.map((row) => ({ title: row.title, categoryId: row.category_id, count: row.count }));
 }
 
-/** Undoes a soft delete. Returns null when the entry doesn't exist or isn't deleted. */
+/**
+ * Undoes a soft delete. If the deletion already reached Google (deleted_at <= last_synced_at), the entry is
+ * unlinked from the old event so the next push creates a new one. Returns null when it isn't deleted.
+ */
 export async function restoreEntry(db: Db, id: string): Promise<TimeEntry | null> {
   const [row] = await db.query<Row>(
-    `update time_entries set deleted_at = null, updated_at = now()
+    `update time_entries set
+            gcal_event_id    = case when gone then null else gcal_event_id end,
+            gcal_etag        = case when gone then null else gcal_etag end,
+            gcal_event       = case when gone then null else gcal_event end,
+            gcal_remote_hash = case when gone then null else gcal_remote_hash end,
+            last_synced_hash = case when gone then null else last_synced_hash end,
+            last_synced_at   = case when gone then null else last_synced_at end,
+            deleted_at = null, updated_at = now()
+       from (select gcal_event_id is not null and last_synced_at is not null and deleted_at <= last_synced_at as gone
+               from time_entries where id = $1) as state
       where id = $1 and deleted_at is not null
-      returning ${COLUMNS}`,
+      returning ${COLUMNS.split(', ').map((c) => `time_entries.${c}`).join(', ')}`,
     [id],
   );
   return row ? toEntry(row) : null;

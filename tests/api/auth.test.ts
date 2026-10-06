@@ -49,15 +49,15 @@ describe('POST /api/auth/login', () => {
 });
 
 describe('GET /api/auth/session', () => {
-  it('returns 401 without a cookie', () => {
-    expect(session(new Request('https://app.example/api/auth/session')).status).toBe(401);
+  it('returns 401 without a cookie', async () => {
+    expect((await session(new Request('https://app.example/api/auth/session'))).status).toBe(401);
   });
 
-  it('returns 200 with a valid cookie', () => {
+  it('returns 200 with a valid cookie', async () => {
     const request = new Request('https://app.example/api/auth/session', {
       headers: { cookie: `tt_session=${createSessionToken(SECRET)}` },
     });
-    expect(session(request).status).toBe(200);
+    expect((await session(request)).status).toBe(200);
   });
 });
 

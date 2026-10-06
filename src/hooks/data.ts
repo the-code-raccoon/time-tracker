@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Category, CategoryInput, TimeEntryInput } from '../../shared/types';
+import type { Category, CategoryInput, ConflictChoice, TimeEntryInput } from '../../shared/types';
 import {
   createCategory,
   createEntry,
@@ -11,7 +11,10 @@ import {
   fetchEntries,
   fetchTitles,
   moveEntriesByTitle,
+  fetchConflicts,
   pullFromGoogle,
+  resolveConflicts,
+  syncWithGoogle,
   reorderCategories,
   restoreEntry,
   updateCategory,
@@ -34,11 +37,13 @@ export function useEntries(from: Date, to: Date) {
   });
 }
 
-/** Refreshes everything derived from entries: lists, title suggestions and category stats. */
+/** Refreshes everything derived from entries: lists, title suggestions, category stats and sync status. */
 function useInvalidateAll() {
   const queryClient = useQueryClient();
   return () =>
-    Promise.all(['entries', 'titles', 'categories'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })));
+    Promise.all(
+      ['entries', 'titles', 'categories', 'google', 'conflicts'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+    );
 }
 
 export function useEntryMutations() {
@@ -93,13 +98,24 @@ export function useGoogleStatus() {
   return useQuery({ queryKey: ['google'], queryFn: fetchGoogleStatus });
 }
 
-/** Pull from Google Calendar, then refresh everything (SYNC-1). */
+/** Pull only (used for the first import, so it can be reviewed before anything is written to Google). */
 export function usePull() {
-  const invalidateAll = useInvalidateAll();
-  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: pullFromGoogle, onSuccess: useInvalidateAll() });
+}
+
+/** Two-way sync (SYNC-1), then refresh everything. */
+export function useSync() {
+  return useMutation({ mutationFn: syncWithGoogle, onSuccess: useInvalidateAll() });
+}
+
+export function useConflicts(enabled = true) {
+  return useQuery({ queryKey: ['conflicts'], queryFn: fetchConflicts, enabled });
+}
+
+export function useResolveConflicts() {
   return useMutation({
-    mutationFn: pullFromGoogle,
-    onSuccess: () => Promise.all([invalidateAll(), queryClient.invalidateQueries({ queryKey: ['google'] })]),
+    mutationFn: (resolutions: { entryId: string; choice: ConflictChoice }[]) => resolveConflicts(resolutions),
+    onSuccess: useInvalidateAll(),
   });
 }
 

@@ -12,14 +12,15 @@ import { addMinutes } from 'date-fns';
 import { useMemo, useState } from 'react';
 import type { Category, TimeEntry } from '../../shared/types';
 import { ApiError } from '../api';
-import { useCategories, useEntries, useEntryMutations, usePull, useTitles } from '../hooks/data';
-import { formatPullSummary } from '../lib/sync';
+import { useCategories, useEntries, useEntryMutations, useGoogleStatus, useSync, useTitles } from '../hooks/data';
+import { formatSyncSummary } from '../lib/sync';
 import { daysBetween, rangeTitle, shiftDate, snapMinutes, viewRange, type ViewMode } from '../lib/dates';
 import { CalendarToolbar } from './calendar/CalendarToolbar';
 import { ScheduleView } from './calendar/ScheduleView';
 import { TimeGrid } from './calendar/TimeGrid';
 import { EntryContextMenu, type ContextMenuState } from './EntryContextMenu';
 import { EntryDialog, type EntryDraft } from './EntryDialog';
+import { ReconcileDialog } from './ReconcileDialog';
 
 const DEFAULT_DURATION_MINUTES = 30;
 
@@ -44,7 +45,10 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
   const categories = useCategories();
   const titles = useTitles();
   const mutations = useEntryMutations();
-  const pull = usePull();
+  const syncMutation = useSync();
+  const googleStatus = useGoogleStatus();
+  const pendingConflicts = googleStatus.data?.configured ? googleStatus.data.pendingConflicts : 0;
+  const [reconciling, setReconciling] = useState(false);
 
   const categoryMap = useMemo(
     () => new Map<string, Category>((categories.data ?? []).map((c) => [c.id, c])),
@@ -75,8 +79,14 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
   }
 
   function sync() {
-    pull.mutate(undefined, {
-      onSuccess: (summary) => setNotice({ text: formatPullSummary(summary) }),
+    syncMutation.mutate(undefined, {
+      onSuccess: (summary) =>
+        setNotice({
+          text: formatSyncSummary(summary),
+          ...(summary.pull.conflicts + summary.push.conflicts > 0 || pendingConflicts > 0
+            ? { action: { label: 'Reconcile', run: () => setReconciling(true) } }
+            : {}),
+        }),
       onError: (error) =>
         setNotice(
           error instanceof ApiError && error.status === 409
@@ -114,7 +124,8 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
           onCreate={() => openCreate()}
           onOpenSettings={onOpenSettings}
           onSync={sync}
-          syncing={pull.isPending}
+          syncing={syncMutation.isPending}
+          pendingConflicts={pendingConflicts}
           onLogout={onLogout}
         />
         <Box sx={{ height: 2 }}>{entries.isFetching && <LinearProgress sx={{ height: 2 }} />}</Box>
@@ -189,6 +200,8 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
           onDelete={editing ? () => deleteWithUndo(editing) : undefined}
         />
       )}
+
+      {reconciling && <ReconcileDialog onClose={() => setReconciling(false)} />}
 
       <Snackbar
         open={!!notice}

@@ -1,4 +1,15 @@
-import type { Category, CategoryInput, GoogleStatus, PullSummary, TimeEntry, TimeEntryInput, TitleSuggestion } from '../shared/types';
+import type {
+  Category,
+  CategoryInput,
+  Conflict,
+  ConflictChoice,
+  GoogleStatus,
+  PullSummary,
+  SyncSummary,
+  TimeEntry,
+  TimeEntryInput,
+  TitleSuggestion,
+} from '../shared/types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -105,4 +116,17 @@ export function pullFromGoogle(): Promise<PullSummary> {
 /** Full-page navigation to Google's consent screen (the server redirects). */
 export function connectGoogle(): void {
   window.location.assign('/api/google/connect');
+}
+
+/** Two-way sync: pull from Google, then push app changes (SYNC-1). */
+export function syncWithGoogle(): Promise<SyncSummary> {
+  return request('/api/sync', { method: 'POST' });
+}
+
+export function fetchConflicts(): Promise<Conflict[]> {
+  return request('/api/sync/conflicts');
+}
+
+export function resolveConflicts(resolutions: { entryId: string; choice: ConflictChoice }[]): Promise<{ resolved: number }> {
+  return request('/api/sync/resolve', { method: 'POST', body: JSON.stringify({ resolutions }) });
 }

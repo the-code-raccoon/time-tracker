@@ -65,3 +65,32 @@ export type PullSummary = {
   skipped: number;
   calendarName?: string;
 };
+
+export type PushSummary = {
+  created: number;
+  updated: number;
+  deleted: number;
+  /** Changed in Google since the last pull; moved to the Reconcile screen. */
+  conflicts: number;
+  /** Not attempted because the time budget ran out; they go on the next sync. */
+  remaining: number;
+  failed: { entryId: string; title: string; error: string }[];
+};
+
+export type SyncSummary = { pull: PullSummary; push: PushSummary };
+
+/** One side of a conflict (SYNC-7). Google's side is mapped to app fields the same way an import is. */
+export type ConflictSide = {
+  deleted: boolean;
+  title: string | null;
+  start: string | null;
+  end: string | null;
+  categoryId: string | null;
+  notes: string | null;
+  /** Google's title as typed there. */
+  rawTitle?: string | null;
+};
+
+export type Conflict = { entryId: string; detectedAt: string; app: ConflictSide; google: ConflictSide };
+
+export type ConflictChoice = 'app' | 'google';

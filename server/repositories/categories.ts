@@ -65,9 +65,12 @@ export async function updateCategory(db: Db, id: string, patch: Partial<Category
   if (!before) return null;
   await db.query(`update categories set ${sets.join(', ')} where id = $1`, params);
 
-  // CAT-4: entries whose GCal colour changes count as modified, so the next sync recolours their events.
+  // CAT-4: entries whose GCal colour changes count as modified (last_synced_hash cleared), so the next push recolours their events.
   if (patch.gcalColorId !== undefined && patch.gcalColorId !== before.gcal_color_id) {
-    await db.query('update time_entries set updated_at = now() where category_id = $1 and deleted_at is null', [id]);
+    await db.query(
+      'update time_entries set updated_at = now(), last_synced_hash = null where category_id = $1 and deleted_at is null',
+      [id],
+    );
   }
   return getCategory(db, id);
 }

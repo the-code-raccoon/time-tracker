@@ -94,6 +94,20 @@ describe('first import', () => {
     ]);
   });
 
+  it('ignores a most recent colour that maps to no category (NORM-8)', async () => {
+    google.set(ev('s1', 'shower', '04-20T09:00', '04-20T09:20', '7'));
+    google.set(ev('s2', 'shower', '09-10T09:00', '09-10T09:20')); // default → Self-care
+    google.set(ev('s3', 'shower', '10-05T09:00', '10-05T09:20', '2')); // most recent, but Sage maps to nothing
+    google.set(ev('m1', 'misc', '10-05T10:00', '10-05T10:20', '2')); // only ever unmapped: stays uncategorised
+    await pull(db, ENV);
+    expect((await rows()).map((r) => [r.title, r.category])).toEqual([
+      ['shower', 'Self-care / logistics'],
+      ['shower', 'Self-care / logistics'],
+      ['shower', 'Self-care / logistics'],
+      ['misc', null],
+    ]);
+  });
+
   it('reads every page', async () => {
     google = fakeGoogle({ pageSize: 2 });
     await saveAccount(db, ENV, { access_token: 'a', expires_in: 3600, refresh_token: 'r' }, null);
