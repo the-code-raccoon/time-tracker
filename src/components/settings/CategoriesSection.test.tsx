@@ -1,21 +1,21 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import type { Category } from '../../shared/types';
-import { CATEGORIES, mockApi, requestsTo } from '../test/mockApi';
-import { renderWithProviders } from '../test/render';
-import { CategoriesPage } from './CategoriesPage';
+import type { Category } from '../../../shared/types';
+import { CATEGORIES, mockApi, requestsTo } from '../../test/mockApi';
+import { renderWithProviders } from '../../test/render';
+import { CategoriesSection } from './CategoriesSection';
 
 const body = (fetchMock: ReturnType<typeof mockApi>, method: string, path: string, index = 0) =>
   JSON.parse(String(requestsTo(fetchMock, method, path)[index][1]?.body));
 
 function setup(routes = {}, categories: Category[] = CATEGORIES) {
   const fetchMock = mockApi({ 'GET /api/categories': () => ({ status: 200, body: categories }), ...routes });
-  renderWithProviders(<CategoriesPage onBack={() => {}} />);
+  renderWithProviders(<CategoriesSection />);
   return { fetchMock, user: userEvent.setup() };
 }
 
-describe('CategoriesPage', () => {
+describe('CategoriesSection', () => {
   it('lists categories with their GCal colour and stats (CAT-7)', async () => {
     setup();
     const list = screen.getByRole('list', { name: 'Categories' });

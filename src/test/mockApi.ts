@@ -20,6 +20,7 @@ export function mockApi(routes: Record<string, Route> = {}, entries: TimeEntry[]
     'GET /api/categories': () => ({ status: 200, body: CATEGORIES }),
     'GET /api/titles': () => ({ status: 200, body: TITLES }),
     'GET /api/entries': () => ({ status: 200, body: entries }),
+    'GET /api/google/status': () => ({ status: 200, body: { configured: true, connected: false, email: null, calendarId: 'cal', lastPullAt: null, pendingConflicts: 0 } }),
     ...routes,
   };
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

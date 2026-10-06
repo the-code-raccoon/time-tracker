@@ -21,6 +21,16 @@ yarn dev
 
 `yarn dev` serves both the app and the `api/` functions at http://localhost:5173. It also listens on your LAN, so you can test on your phone.
 
+## Google Calendar
+
+1. In [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services → Credentials**, open the OAuth web client and add these **Authorized redirect URIs**:
+   - `http://localhost:5173/api/google/callback`
+   - `https://<your-app>.vercel.app/api/google/callback`
+2. Set the `GOOGLE_*` variables and `TOKEN_ENCRYPTION_KEY` (see `.env.example`). In Vercel, `GOOGLE_REDIRECT_URI` is the Vercel URL.
+3. In the app: **Settings → Connect Google Calendar**, then **Import from Google Calendar**. After that, the ⟳ button in the toolbar pulls new changes.
+
+Pulling never writes to Google Calendar. Entries changed in both places are set aside for reconciling (M3).
+
 ## Scripts
 
 | Command | What it does |
@@ -53,7 +63,7 @@ Server imports use explicit `.js` extensions (Node ESM), so they also resolve on
 ## Deploying to Vercel
 
 1. Import the repo in Vercel. `vercel.json` sets the build (`yarn vercel-build`, which runs the tests before building).
-2. Add `APP_PASSWORD_HASH`, `SESSION_SECRET` and `DATABASE_URL` under **Settings → Environment Variables**.
+2. Add `APP_PASSWORD_HASH`, `SESSION_SECRET`, `DATABASE_URL`, the `GOOGLE_*` variables and `TOKEN_ENCRYPTION_KEY` under **Settings → Environment Variables**.
 3. Run `yarn db:migrate` locally whenever a new migration is added (migrations are not run during the build).
 
 ## Testing

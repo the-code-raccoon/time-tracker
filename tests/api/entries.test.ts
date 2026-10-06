@@ -70,6 +70,11 @@ describe('POST /api/entries', () => {
     });
   });
 
+  it('maps aliases to the canonical title (NORM-2, NORM-7)', async () => {
+    const entry = await readJson<TimeEntry>(create({ title: 'Gym + Cardio', start: '2026-10-05T16:00:00Z', end: '2026-10-05T17:00:00Z' }));
+    expect(entry.title).toBe('exercise');
+  });
+
   it('accepts times with an offset and stores them in UTC', async () => {
     const entry = await readJson<TimeEntry>(create({ title: 'work', start: '2026-10-05T09:00:00-04:00', end: '2026-10-05T17:00:00-04:00' }));
     expect(entry.start).toBe('2026-10-05T13:00:00.000Z');

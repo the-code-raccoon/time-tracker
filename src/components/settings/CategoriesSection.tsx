@@ -1,10 +1,8 @@
 import Add from '@mui/icons-material/Add';
-import ArrowBack from '@mui/icons-material/ArrowBack';
 import DragIndicator from '@mui/icons-material/DragIndicator';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import MoreVert from '@mui/icons-material/MoreVert';
 import Alert from '@mui/material/Alert';
-import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -13,18 +11,17 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Snackbar from '@mui/material/Snackbar';
-import Toolbar from '@mui/material/Toolbar';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useState, type DragEvent } from 'react';
-import { gcalColorName } from '../../shared/gcalColors';
-import type { Category } from '../../shared/types';
-import { CategoryDialog } from '../components/categories/CategoryDialog';
-import { DeleteCategoryDialog } from '../components/categories/DeleteCategoryDialog';
-import { MoveByTitleDialog } from '../components/categories/MoveByTitleDialog';
-import { useCategories, useCategoryMutations, useEntryMutations, useTitles } from '../hooks/data';
-import { formatHours } from '../lib/dates';
-import { moveItem } from '../lib/list';
+import { gcalColorName } from '../../../shared/gcalColors';
+import type { Category } from '../../../shared/types';
+import { CategoryDialog } from '../categories/CategoryDialog';
+import { DeleteCategoryDialog } from '../categories/DeleteCategoryDialog';
+import { MoveByTitleDialog } from '../categories/MoveByTitleDialog';
+import { useCategories, useCategoryMutations, useEntryMutations, useTitles } from '../../hooks/data';
+import { formatHours } from '../../lib/dates';
+import { moveItem } from '../../lib/list';
 
 type DialogState =
   | { kind: 'create' }
@@ -32,10 +29,8 @@ type DialogState =
   | { kind: 'delete' | 'merge'; category: Category }
   | { kind: 'move-by-title' };
 
-type Props = { onBack: () => void };
-
 /** CAT-7 – CAT-12: manage categories. */
-export function CategoriesPage({ onBack }: Props) {
+export function CategoriesSection() {
   const categories = useCategories();
   const titles = useTitles();
   const mutations = useCategoryMutations();
@@ -64,21 +59,11 @@ export function CategoriesPage({ onBack }: Props) {
   const menuCategory = menu ? list[menu.index] : undefined;
 
   return (
-    <Box sx={{ minHeight: '100dvh' }}>
-      <AppBar position="sticky" sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.default' }}>
-        <Toolbar sx={{ gap: 1 }}>
-          <Tooltip title="Back to calendar">
-            <IconButton aria-label="Back to calendar" onClick={onBack} edge="start">
-              <ArrowBack />
-            </IconButton>
-          </Tooltip>
-          <Typography component="h1" variant="h6" sx={{ flexGrow: 1 }}>
-            Categories
-          </Typography>
-        </Toolbar>
-      </AppBar>
-
-      <Box component="main" sx={{ maxWidth: 800, mx: 'auto', p: { xs: 1.5, sm: 3 } }}>
+    <Box component="section" aria-labelledby="categories-heading">
+      <Typography id="categories-heading" component="h2" variant="h6" sx={{ mb: 1.5 }}>
+        Categories
+      </Typography>
+      <Box>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
           <Button variant="contained" startIcon={<Add />} onClick={() => setDialog({ kind: 'create' })}>
             New category

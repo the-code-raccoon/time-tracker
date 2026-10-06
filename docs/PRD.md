@@ -294,6 +294,13 @@ type Backup = {
 type SyncState = { syncToken?: string; lastSyncAt?: string };
 ```
 
+### Implementation notes (M2)
+
+- **Titles:** `title_aliases` maps a normalised title to its canonical title (NORM-2, NORM-7). It is applied on import and when saving in the app. `title_categories` fixes the category of some canonical titles regardless of colour (`exercise` → Exercise). This runs before the colour lookup and before NORM-8.
+- **Colours:** an event's category comes from `categories.gcal_color_id`, plus `gcal_color_map` for legacy colours (Lavender → Leisure). An event with no colour gets the category whose GCal colour is "Calendar default".
+- **Change detection:** `time_entries.app_hash` (a generated column) vs `last_synced_hash` shows a change made in the app; `gcal_remote_hash` shows a change made in Google. Changes on both sides go to `sync_conflicts` until the Reconcile screen (M3) resolves them.
+- **Tokens:** the Google refresh and access tokens are AES-256-GCM encrypted (`TOKEN_ENCRYPTION_KEY`). The Calendar API is called with plain `fetch`, not the `googleapis` package, to keep functions small.
+
 ## 7. Non-functional requirements
 
 | ID    | Requirement                                                                                                                                        |
@@ -326,7 +333,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 
 ### Google OAuth setup notes
 
-- Authorised redirect URIs must include both `http://localhost:<port>/api/auth/google/callback` and `https://<app>.vercel.app/api/auth/google/callback`.
+- Authorised redirect URIs must include both `http://localhost:5173/api/google/callback` and `https://<app>.vercel.app/api/google/callback`.
 - The consent screen should be **In production**. In Testing mode, refresh tokens expire after 7 days.
 - Scope: `https://www.googleapis.com/auth/calendar.events`.
 
@@ -345,7 +352,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 1. ✅ **M0 — Scaffold:** Vite + React + TS + MUI dark theme, Yarn, Vitest suite, Vercel config, password login.
 2. ✅ **M1 — Entries:** CRUD with database persistence; Day, Week and Schedule views; responsive layout.
 3. ✅ **M1b — Editing:** Google Calendar-style date/time controls (§5.2b), entry context menu (§5.2c), Categories page (CAT-7 – CAT-12).
-4. **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
+4. ✅ **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
 5. **M3 — Push + conflict detection + Reconcile UI.**
 6. **M4 — Keyboard shortcuts**, Month view, timer, drag and drop (§5.2d).
 7. **M5 — Reporting**, CSV export, PWA install.
@@ -388,3 +395,4 @@ _None right now._
 | 2026-10-05 | DT-2: the date picker's calendar marks today. |
 | 2026-10-05 | Added drag and drop in the calendar (§5.2d): move, move across days, resize and drag-to-create in 15-minute steps, with undo. |
 | 2026-10-05 | DRAG-1: drag moves in 15-minute steps from the entry's own time. |
+| 2026-10-05 | M2 done: Google OAuth (connect/disconnect, encrypted tokens), pull with sync tokens, first import with normalisation, aliases and colour → category mapping, conflict capture. Settings page now has a Google Calendar section; toolbar Sync button pulls. Redirect URI is `/api/google/callback`. |

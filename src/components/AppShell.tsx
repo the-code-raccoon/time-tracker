@@ -11,7 +11,9 @@ import { useTheme } from '@mui/material/styles';
 import { addMinutes } from 'date-fns';
 import { useMemo, useState } from 'react';
 import type { Category, TimeEntry } from '../../shared/types';
-import { useCategories, useEntries, useEntryMutations, useTitles } from '../hooks/data';
+import { ApiError } from '../api';
+import { useCategories, useEntries, useEntryMutations, usePull, useTitles } from '../hooks/data';
+import { formatPullSummary } from '../lib/sync';
 import { daysBetween, rangeTitle, shiftDate, snapMinutes, viewRange, type ViewMode } from '../lib/dates';
 import { CalendarToolbar } from './calendar/CalendarToolbar';
 import { ScheduleView } from './calendar/ScheduleView';
@@ -21,7 +23,7 @@ import { EntryDialog, type EntryDraft } from './EntryDialog';
 
 const DEFAULT_DURATION_MINUTES = 30;
 
-type Notice = { text: string; undo?: () => void };
+type Notice = { text: string; undo?: () => void; action?: { label: string; run: () => void } };
 
 type Props = { onOpenSettings: () => void; onLogout: () => void };
 
@@ -42,6 +44,7 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
   const categories = useCategories();
   const titles = useTitles();
   const mutations = useEntryMutations();
+  const pull = usePull();
 
   const categoryMap = useMemo(
     () => new Map<string, Category>((categories.data ?? []).map((c) => [c.id, c])),
@@ -68,6 +71,18 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
     setNotice({
       text: `Moved to ${name}`,
       undo: () => mutations.update.mutateAsync({ id: entry.id, patch: { categoryId: previous } }).catch(report),
+    });
+  }
+
+  function sync() {
+    pull.mutate(undefined, {
+      onSuccess: (summary) => setNotice({ text: formatPullSummary(summary) }),
+      onError: (error) =>
+        setNotice(
+          error instanceof ApiError && error.status === 409
+            ? { text: 'Google Calendar isn\'t connected', action: { label: 'Settings', run: onOpenSettings } }
+            : { text: `Sync failed: ${error.message}` },
+        ),
     });
   }
 
@@ -98,6 +113,8 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
           onNext={() => setDate((d) => shiftDate(view, d, 1))}
           onCreate={() => openCreate()}
           onOpenSettings={onOpenSettings}
+          onSync={sync}
+          syncing={pull.isPending}
           onLogout={onLogout}
         />
         <Box sx={{ height: 2 }}>{entries.isFetching && <LinearProgress sx={{ height: 2 }} />}</Box>
@@ -175,20 +192,21 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
 
       <Snackbar
         open={!!notice}
-        autoHideDuration={notice?.undo ? 6000 : 3000}
+        autoHideDuration={notice?.undo || notice?.action ? 6000 : 4000}
         onClose={(_, reason) => reason !== 'clickaway' && setNotice(null)}
         message={notice?.text}
         action={
-          notice?.undo && (
+          (notice?.undo || notice?.action) && (
             <Button
               color="primary"
               size="small"
               onClick={() => {
-                notice.undo?.();
+                if (notice.undo) notice.undo();
+                else notice.action?.run();
                 setNotice(null);
               }}
             >
-              Undo
+              {notice.undo ? 'Undo' : notice.action?.label}
             </Button>
           )
         }

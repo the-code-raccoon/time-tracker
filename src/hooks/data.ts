@@ -5,10 +5,13 @@ import {
   createEntry,
   deleteCategory,
   deleteEntry,
+  disconnectGoogle,
   fetchCategories,
+  fetchGoogleStatus,
   fetchEntries,
   fetchTitles,
   moveEntriesByTitle,
+  pullFromGoogle,
   reorderCategories,
   restoreEntry,
   updateCategory,
@@ -84,4 +87,23 @@ export function useCategoryMutations() {
       onSettled: () => queryClient.invalidateQueries({ queryKey: ['categories'] }),
     }),
   };
+}
+
+export function useGoogleStatus() {
+  return useQuery({ queryKey: ['google'], queryFn: fetchGoogleStatus });
+}
+
+/** Pull from Google Calendar, then refresh everything (SYNC-1). */
+export function usePull() {
+  const invalidateAll = useInvalidateAll();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: pullFromGoogle,
+    onSuccess: () => Promise.all([invalidateAll(), queryClient.invalidateQueries({ queryKey: ['google'] })]),
+  });
+}
+
+export function useDisconnectGoogle() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: disconnectGoogle, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['google'] }) });
 }

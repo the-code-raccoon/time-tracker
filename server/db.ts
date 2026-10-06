@@ -7,15 +7,30 @@ export type Db = {
   exec(text: string): Promise<void>;
 };
 
+/** Runs async tasks one at a time, in order. */
+export function createSerialQueue() {
+  let tail: Promise<unknown> = Promise.resolve();
+  return <T>(task: () => Promise<T>): Promise<T> => {
+    const result = tail.then(task, task);
+    tail = result.catch(() => undefined);
+    return result;
+  };
+}
+
 export function createPostgresDb(url: string): Db & { end(): Promise<void> } {
   // prepare: false is required by Supabase's transaction pooler (port 6543).
   const sql = postgres(url, { prepare: false, max: 1, idle_timeout: 20, connect_timeout: 10, onnotice: () => {} });
+  // postgres.js pipelines concurrent queries on its connection, which Supabase's transaction pooler doesn't
+  // handle reliably (wrong results, then a stuck connection). Send one query at a time instead.
+  const serial = createSerialQueue();
   return {
-    async query<T extends object>(text: string, params: unknown[] = []) {
-      return (await sql.unsafe(text, params as postgres.ParameterOrJSON<never>[])) as unknown as T[];
+    query<T extends object>(text: string, params: unknown[] = []) {
+      return serial(async () => (await sql.unsafe(text, params as postgres.ParameterOrJSON<never>[])) as unknown as T[]);
     },
-    async exec(text) {
-      await sql.unsafe(text).simple();
+    exec(text) {
+      return serial(async () => {
+        await sql.unsafe(text).simple();
+      });
     },
     end: () => sql.end(),
   };

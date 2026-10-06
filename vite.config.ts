@@ -27,6 +27,9 @@ export default defineConfig(({ mode }) => {
           test: {
             name: 'server',
             environment: 'node',
+            // Creating and migrating an in-memory Postgres (PGlite) takes a few seconds under a parallel load.
+            testTimeout: 20_000,
+            hookTimeout: 20_000,
             include: ['tests/**/*.test.ts', 'server/**/*.test.ts', 'shared/**/*.test.ts', 'vite-plugins/**/*.test.ts'],
           },
         },

@@ -1,6 +1,6 @@
 import { getDb } from '../../server/db.js';
 import { HttpError, authed, json, lastPathSegment, readJson } from '../../server/http.js';
-import { deleteEntry, getEntry, updateEntry } from '../../server/repositories/entries.js';
+import { canonicalizeTitle, deleteEntry, getEntry, updateEntry } from '../../server/repositories/entries.js';
 import { checkTimes, parseEntryPatch, parseUuid } from '../../server/validation.js';
 
 /** PATCH /api/entries/:id — partial update. */
@@ -8,6 +8,7 @@ export const PATCH = authed(async (request) => {
   const db = getDb();
   const id = parseUuid(lastPathSegment(request));
   const patch = parseEntryPatch(await readJson(request));
+  if (patch.title !== undefined) patch.title = await canonicalizeTitle(db, patch.title);
 
   if (patch.start !== undefined || patch.end !== undefined) {
     const existing = await getEntry(db, id);

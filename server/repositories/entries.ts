@@ -134,3 +134,9 @@ export async function moveEntriesByTitle(db: Db, title: string, categoryId: stri
   await pruneBackups(db);
   return moved.length;
 }
+
+/** NORM-2: maps an already-normalised title through the alias table (e.g. "gym" → "exercise"). */
+export async function canonicalizeTitle(db: Db, title: string): Promise<string> {
+  const [row] = await db.query<{ title: string }>('select title from title_aliases where alias = $1', [title]);
+  return row?.title ?? title;
+}

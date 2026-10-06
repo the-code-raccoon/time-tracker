@@ -3,6 +3,7 @@ import ChevronLeft from '@mui/icons-material/ChevronLeft';
 import ChevronRight from '@mui/icons-material/ChevronRight';
 import Logout from '@mui/icons-material/Logout';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
+import Sync from '@mui/icons-material/Sync';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
@@ -22,10 +23,12 @@ type Props = {
   onNext: () => void;
   onCreate: () => void;
   onOpenSettings: () => void;
+  onSync: () => void;
+  syncing: boolean;
   onLogout: () => void;
 };
 
-export function CalendarToolbar({ title, view, compact, onViewChange, onToday, onPrevious, onNext, onCreate, onOpenSettings, onLogout }: Props) {
+export function CalendarToolbar({ title, view, compact, onViewChange, onToday, onPrevious, onNext, onCreate, onOpenSettings, onSync, syncing, onLogout }: Props) {
   const period = VIEW_LABELS[view].toLowerCase();
   return (
     <Toolbar sx={{ gap: { xs: 0.5, sm: 1 }, px: { xs: 1, sm: 2 } }}>
@@ -64,8 +67,20 @@ export function CalendarToolbar({ title, view, compact, onViewChange, onToday, o
           </MenuItem>
         ))}
       </TextField>
-      <Tooltip title="Categories">
-        <IconButton aria-label="Categories" onClick={onOpenSettings} size={compact ? 'small' : 'medium'}>
+      <Tooltip title="Sync with Google Calendar">
+        <span>
+          <IconButton aria-label="Sync with Google Calendar" onClick={onSync} disabled={syncing} size={compact ? 'small' : 'medium'}>
+            <Sync
+              sx={{
+                animation: syncing ? 'tt-spin 1s linear infinite' : 'none',
+                '@keyframes tt-spin': { from: { transform: 'rotate(360deg)' }, to: { transform: 'rotate(0deg)' } },
+              }}
+            />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title="Settings">
+        <IconButton aria-label="Settings" onClick={onOpenSettings} size={compact ? 'small' : 'medium'}>
           <SettingsOutlined />
         </IconButton>
       </Tooltip>

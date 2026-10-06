@@ -1,4 +1,4 @@
-import type { Category, CategoryInput, TimeEntry, TimeEntryInput, TitleSuggestion } from '../shared/types';
+import type { Category, CategoryInput, GoogleStatus, PullSummary, TimeEntry, TimeEntryInput, TitleSuggestion } from '../shared/types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -88,4 +88,21 @@ export function deleteCategory(id: string, moveTo: string | null): Promise<{ mov
 
 export function reorderCategories(ids: string[]): Promise<Category[]> {
   return request('/api/categories/reorder', { method: 'POST', body: JSON.stringify({ ids }) });
+}
+
+export function fetchGoogleStatus(): Promise<GoogleStatus> {
+  return request('/api/google/status');
+}
+
+export function disconnectGoogle(): Promise<void> {
+  return request('/api/google/disconnect', { method: 'POST' });
+}
+
+export function pullFromGoogle(): Promise<PullSummary> {
+  return request('/api/sync/pull', { method: 'POST' });
+}
+
+/** Full-page navigation to Google's consent screen (the server redirects). */
+export function connectGoogle(): void {
+  window.location.assign('/api/google/connect');
 }

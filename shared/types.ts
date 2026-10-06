@@ -43,3 +43,25 @@ export type TitleSuggestion = {
   categoryId: string | null;
   count: number;
 };
+
+export type GoogleStatus =
+  | { configured: false; connected: false }
+  | {
+      configured: true;
+      connected: boolean;
+      email: string | null;
+      calendarId: string;
+      lastPullAt: string | null;
+      pendingConflicts: number;
+    };
+
+export type PullSummary = {
+  full: boolean;
+  fetched: number;
+  imported: number;
+  updated: number;
+  deleted: number;
+  conflicts: number;
+  skipped: number;
+  calendarName?: string;
+};

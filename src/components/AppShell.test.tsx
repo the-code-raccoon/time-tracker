@@ -189,6 +189,32 @@ describe('AppShell', () => {
     });
   });
 
+  describe('sync button (SYNC-1)', () => {
+    it('pulls and shows a summary', async () => {
+      const user = userEvent.setup();
+      const fetchMock = mockApi({
+        'POST /api/sync/pull': () => ({ status: 200, body: { full: true, fetched: 2431, imported: 2431, updated: 0, deleted: 0, conflicts: 0, skipped: 0 } }),
+      });
+      renderWithProviders(<AppShell onOpenSettings={() => {}} onLogout={() => {}} />);
+      await user.click(screen.getByRole('button', { name: 'Sync with Google Calendar' }));
+      expect(await screen.findByText('Imported 2,431 entries')).toBeInTheDocument();
+      // entries are reloaded after the pull
+      await waitFor(() => expect(requestsTo(fetchMock, 'GET', '/api/entries').length).toBeGreaterThan(1));
+    });
+
+    it('offers Settings when Google is not connected', async () => {
+      const user = userEvent.setup();
+      const onOpenSettings = vi.fn();
+      mockApi({ 'POST /api/sync/pull': () => ({ status: 409, body: { error: 'Connect Google Calendar in Settings first' } }) });
+      renderWithProviders(<AppShell onOpenSettings={onOpenSettings} onLogout={() => {}} />);
+      await user.click(screen.getByRole('button', { name: 'Sync with Google Calendar' }));
+      const snackbar = await screen.findByRole('alert');
+      expect(snackbar).toHaveTextContent("Google Calendar isn't connected");
+      await user.click(within(snackbar).getByRole('button', { name: 'Settings' }));
+      expect(onOpenSettings).toHaveBeenCalled();
+    });
+  });
+
   it('shows the schedule view grouped by day', async () => {
     const user = userEvent.setup();
     mockApi({}, [entry({ title: 'work' })]);
