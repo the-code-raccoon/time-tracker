@@ -1,11 +1,8 @@
-import Autocomplete from '@mui/material/Autocomplete';
-import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
-import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -13,9 +10,9 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { Category, TimeEntry, TimeEntryInput, TitleSuggestion } from '../../shared/types';
-import { UNCATEGORISED_COLOR } from '../lib/color';
 import { createRange, isValidRange } from '../lib/timeRange';
 import { DateTimeRangeEditor } from './datetime/DateTimeRangeEditor';
+import { CategorySelect, TitleField } from './TitleField';
 
 export type EntryDraft =
   | {
@@ -107,55 +104,19 @@ export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onC
       <DialogTitle>{draft.kind === 'edit' ? 'Edit entry' : 'New entry'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2.5} sx={{ pt: 1 }}>
-          <Autocomplete
-            freeSolo
-            options={titles}
-            getOptionLabel={(option) => (typeof option === 'string' ? option : option.title)}
-            filterOptions={(options, { inputValue }) => {
-              const query = inputValue.trim().toLowerCase();
-              return options.filter((option) => option.title.includes(query)).slice(0, 8);
-            }}
-            inputValue={title}
-            onInputChange={(_, value) => setTitle(value)}
-            onChange={(_, value) => {
-              if (value && typeof value !== 'string') {
-                setTitle(value.title);
-                setCategoryId(value.categoryId ?? '');
-              }
-            }}
-            renderOption={({ key, ...props }, option) => (
-              <li key={key} {...props}>
-                <Box
-                  sx={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    mr: 1.5,
-                    flexShrink: 0,
-                    bgcolor: categories.find((c) => c.id === option.categoryId)?.appColor ?? UNCATEGORISED_COLOR,
-                  }}
-                />
-                {option.title}
-              </li>
-            )}
-            renderInput={(params) => (
-              <TextField {...params} label="Title" autoFocus required error={!!titleError} helperText={titleError} />
-            )}
+          <TitleField
+            value={title}
+            onChange={setTitle}
+            onPickCategory={(id) => setCategoryId(id ?? '')}
+            titles={titles}
+            categories={categories}
+            error={titleError}
+            autoFocus
           />
 
           <DateTimeRangeEditor range={range} onChange={setRange} />
 
-          <TextField select label="Category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-            <MenuItem value="">
-              <em>None</em>
-            </MenuItem>
-            {categories.map((category) => (
-              <MenuItem key={category.id} value={category.id}>
-                <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: category.appColor, mr: 1.5, display: 'inline-block' }} />
-                {category.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          <CategorySelect value={categoryId} onChange={setCategoryId} categories={categories} />
 
           <TextField label="Notes" multiline minRows={2} value={notes} onChange={(event) => setNotes(event.target.value)} />
 

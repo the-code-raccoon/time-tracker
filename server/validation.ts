@@ -1,6 +1,6 @@
 import { normalizeTitle } from '../shared/titles.js';
 import { GCAL_COLORS } from '../shared/gcalColors.js';
-import type { CategoryInput, TimeEntryInput } from '../shared/types.js';
+import type { CategoryInput, TimeEntryInput, TimerInput } from '../shared/types.js';
 import { HttpError } from './http.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -112,6 +112,44 @@ export function parseTitle(value: unknown): string {
   const title = normalizeTitle(value);
   if (!title) throw new HttpError(400, 'title is required');
   return title;
+}
+
+/** `q` for searching entries: normalised like a title (NORM-1), so "Make+eat" finds "make + eat lunch". */
+export function parseSearchQuery(url: URL): string | null {
+  const q = url.searchParams.get('q');
+  if (q === null) return null;
+  const query = normalizeTitle(q);
+  if (query.length === 0 || query.length > 200) throw new HttpError(400, 'q must be 1–200 characters');
+  return query;
+}
+
+const CLOCK_SKEW_MS = 60 * 1000;
+
+function parseTimerFields(body: Record<string, unknown>): Partial<TimerInput> {
+  const result: Partial<TimerInput> = {};
+  if (body.title !== undefined) {
+    const title = parseTitle(body.title);
+    if (title.length > 200) throw new HttpError(400, 'title must be 1–200 characters');
+    result.title = title;
+  }
+  if (body.categoryId !== undefined) result.categoryId = parseOptionalUuid(body.categoryId, 'categoryId');
+  if (body.startedAt !== undefined) {
+    result.startedAt = parseDate(body.startedAt, 'startedAt');
+    if (Date.parse(result.startedAt) > Date.now() + CLOCK_SKEW_MS) throw new HttpError(400, 'startedAt can\'t be in the future');
+  }
+  return result;
+}
+
+export function parseTimerInput(body: unknown): Required<TimerInput> {
+  const fields = parseTimerFields(asRecord(body));
+  if (fields.title === undefined) throw new HttpError(400, 'title is required');
+  return { title: fields.title, categoryId: fields.categoryId ?? null, startedAt: fields.startedAt ?? new Date().toISOString() };
+}
+
+export function parseTimerPatch(body: unknown): Partial<TimerInput> {
+  const fields = parseTimerFields(asRecord(body));
+  if (Object.keys(fields).length === 0) throw new HttpError(400, 'Nothing to update');
+  return fields;
 }
 
 export { asRecord };

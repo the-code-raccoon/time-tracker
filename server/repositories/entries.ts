@@ -2,7 +2,7 @@ import type { TimeEntry, TimeEntryInput, TitleSuggestion } from '../../shared/ty
 import type { Db } from '../db.js';
 import { pruneBackups } from './backups.js';
 
-type Row = {
+export type EntryRow = {
   id: string;
   title: string;
   starts_at: Date;
@@ -13,9 +13,9 @@ type Row = {
   updated_at: Date;
 };
 
-const COLUMNS = 'id, title, starts_at, ends_at, category_id, notes, gcal_event_id, updated_at';
+export const ENTRY_COLUMNS = 'id, title, starts_at, ends_at, category_id, notes, gcal_event_id, updated_at';
 
-function toEntry(row: Row): TimeEntry {
+export function toEntry(row: EntryRow): TimeEntry {
   return {
     id: row.id,
     title: row.title,
@@ -30,8 +30,8 @@ function toEntry(row: Row): TimeEntry {
 
 /** Entries overlapping [from, to), including ones that start before `from` or cross midnight. */
 export async function listEntries(db: Db, from: Date, to: Date): Promise<TimeEntry[]> {
-  const rows = await db.query<Row>(
-    `select ${COLUMNS} from time_entries
+  const rows = await db.query<EntryRow>(
+    `select ${ENTRY_COLUMNS} from time_entries
       where deleted_at is null and starts_at < $2 and ends_at > $1
       order by starts_at, ends_at`,
     [from.toISOString(), to.toISOString()],
@@ -39,11 +39,28 @@ export async function listEntries(db: Db, from: Date, to: Date): Promise<TimeEnt
   return rows.map(toEntry);
 }
 
+/**
+ * Search (`/`): entries whose title or notes contain the query, newest first. A query that is an alias also finds
+ * its canonical title (NORM-5), so "gym" finds "exercise".
+ */
+export async function searchEntries(db: Db, query: string, limit = 50): Promise<TimeEntry[]> {
+  const canonical = await canonicalizeTitle(db, query);
+  const pattern = `%${query.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const rows = await db.query<EntryRow>(
+    `select ${ENTRY_COLUMNS} from time_entries
+      where deleted_at is null and (title ilike $1 or notes ilike $1 or title = $2)
+      order by starts_at desc
+      limit $3`,
+    [pattern, canonical, limit],
+  );
+  return rows.map(toEntry);
+}
+
 export async function createEntry(db: Db, input: Required<TimeEntryInput>): Promise<TimeEntry> {
-  const [row] = await db.query<Row>(
+  const [row] = await db.query<EntryRow>(
     `insert into time_entries (title, starts_at, ends_at, category_id, notes)
      values ($1, $2, $3, $4, $5)
-     returning ${COLUMNS}`,
+     returning ${ENTRY_COLUMNS}`,
     [input.title, input.start, input.end, input.categoryId, input.notes],
   );
   return toEntry(row);
@@ -68,10 +85,10 @@ export async function updateEntry(db: Db, id: string, patch: Partial<TimeEntryIn
   }
   sets.push('updated_at = now()');
 
-  const [row] = await db.query<Row>(
+  const [row] = await db.query<EntryRow>(
     `update time_entries set ${sets.join(', ')}
       where id = $1 and deleted_at is null
-      returning ${COLUMNS}`,
+      returning ${ENTRY_COLUMNS}`,
     params,
   );
   return row ? toEntry(row) : null;
@@ -87,7 +104,7 @@ export async function deleteEntry(db: Db, id: string): Promise<boolean> {
 }
 
 export async function getEntry(db: Db, id: string): Promise<TimeEntry | null> {
-  const [row] = await db.query<Row>(`select ${COLUMNS} from time_entries where id = $1 and deleted_at is null`, [id]);
+  const [row] = await db.query<EntryRow>(`select ${ENTRY_COLUMNS} from time_entries where id = $1 and deleted_at is null`, [id]);
   return row ? toEntry(row) : null;
 }
 
@@ -112,7 +129,7 @@ export async function listTitleSuggestions(db: Db, limit = 500): Promise<TitleSu
  * unlinked from the old event so the next push creates a new one. Returns null when it isn't deleted.
  */
 export async function restoreEntry(db: Db, id: string): Promise<TimeEntry | null> {
-  const [row] = await db.query<Row>(
+  const [row] = await db.query<EntryRow>(
     `update time_entries set
             gcal_event_id    = case when gone then null else gcal_event_id end,
             gcal_etag        = case when gone then null else gcal_etag end,
@@ -124,7 +141,7 @@ export async function restoreEntry(db: Db, id: string): Promise<TimeEntry | null
        from (select gcal_event_id is not null and last_synced_at is not null and deleted_at <= last_synced_at as gone
                from time_entries where id = $1) as state
       where id = $1 and deleted_at is not null
-      returning ${COLUMNS.split(', ').map((c) => `time_entries.${c}`).join(', ')}`,
+      returning ${ENTRY_COLUMNS.split(', ').map((c) => `time_entries.${c}`).join(', ')}`,
     [id],
   );
   return row ? toEntry(row) : null;

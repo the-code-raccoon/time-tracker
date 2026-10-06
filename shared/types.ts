@@ -37,6 +37,20 @@ export type TimeEntryInput = {
   notes?: string | null;
 };
 
+/** The running timer (TE-5); null when none is running. */
+export type Timer = {
+  title: string;
+  categoryId: string | null;
+  startedAt: string;
+};
+
+export type TimerInput = {
+  title: string;
+  categoryId?: string | null;
+  /** Defaults to now. */
+  startedAt?: string;
+};
+
 export type TitleSuggestion = {
   title: string;
   /** Category of the most recent entry with this title (NORM-8). */

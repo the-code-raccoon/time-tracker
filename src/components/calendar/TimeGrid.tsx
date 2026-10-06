@@ -1,14 +1,17 @@
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Typography from '@mui/material/Typography';
-import { addMinutes, format, isSameDay } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { useEffect, useRef, type MouseEvent } from 'react';
 import type { Category, TimeEntry } from '../../../shared/types';
-import { UNCATEGORISED_COLOR } from '../../lib/color';
+import { readableTextColor, UNCATEGORISED_COLOR } from '../../lib/color';
+import { formatTimeRange } from '../../lib/dates';
+import { atWallMinutes, type Times } from '../../lib/drag';
 import { layoutDay } from '../../lib/layout';
 import { useNow } from '../../hooks/useNow';
 import { EntryBlock } from './EntryBlock';
 import type { OpenEntryMenu } from './entryMenu';
+import { useGridDrag, type DragPreview } from './useGridDrag';
 
 export const HOUR_HEIGHT = 48;
 const PX_PER_MINUTE = HOUR_HEIGHT / 60;
@@ -20,14 +23,30 @@ type Props = {
   entries: TimeEntry[];
   categories: Map<string, Category>;
   onCreateAt: (start: Date) => void;
+  /** DRAG-4: a range selected by dragging across empty grid space. */
+  onCreateRange: (times: Times) => void;
+  /** DRAG-1 – DRAG-3: an entry was dropped at new times. */
+  onReschedule: (entry: TimeEntry, times: Times, kind: 'move' | 'resize') => void;
   onSelect: (entry: TimeEntry) => void;
   onOpenMenu: OpenEntryMenu;
   onDayClick: (day: Date) => void;
 };
 
-export function TimeGrid({ days, entries, categories, onCreateAt, onSelect, onOpenMenu, onDayClick }: Props) {
+export function TimeGrid({ days, entries, categories, onCreateAt, onCreateRange, onReschedule, onSelect, onOpenMenu, onDayClick }: Props) {
   const now = useNow();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const drag = useGridDrag({
+    gridRef,
+    scrollRef,
+    gutterWidth: GUTTER,
+    pxPerMinute: PX_PER_MINUTE,
+    days,
+    onCommit: onReschedule,
+    onCreate: onCreateRange,
+    onLongPress: onOpenMenu,
+  });
+  const colorOf = (entry?: TimeEntry) => (entry?.categoryId && categories.get(entry.categoryId)?.appColor) || UNCATEGORISED_COLOR;
 
   // When the visible days change, scroll to ~2 h before now (if today is visible) or to 7 am.
   useEffect(() => {
@@ -42,7 +61,7 @@ export function TimeGrid({ days, entries, categories, onCreateAt, onSelect, onOp
     if (event.target !== event.currentTarget) return;
     const offset = event.clientY - event.currentTarget.getBoundingClientRect().top;
     const minutes = Math.floor(offset / PX_PER_MINUTE / CLICK_SNAP_MINUTES) * CLICK_SNAP_MINUTES;
-    onCreateAt(addMinutes(day, Math.min(Math.max(minutes, 0), 24 * 60 - CLICK_SNAP_MINUTES)));
+    onCreateAt(atWallMinutes(day, Math.min(Math.max(minutes, 0), 24 * 60 - CLICK_SNAP_MINUTES)));
   }
 
   return (
@@ -81,7 +100,7 @@ export function TimeGrid({ days, entries, categories, onCreateAt, onSelect, onOp
       </Box>
 
       <Box ref={scrollRef} sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', scrollbarGutter: 'stable' }}>
-        <Box sx={{ display: 'flex', position: 'relative', height: 24 * HOUR_HEIGHT }}>
+        <Box ref={gridRef} sx={{ display: 'flex', position: 'relative', height: 24 * HOUR_HEIGHT, userSelect: 'none' }}>
           <Box sx={{ width: GUTTER, flexShrink: 0, position: 'relative' }} aria-hidden>
             {Array.from({ length: 23 }, (_, i) => i + 1).map((hour) => (
               <Typography
@@ -94,11 +113,12 @@ export function TimeGrid({ days, entries, categories, onCreateAt, onSelect, onOp
             ))}
           </Box>
 
-          {days.map((day) => (
+          {days.map((day, dayIndex) => (
             <Box
               key={day.getTime()}
               data-testid={`day-column-${format(day, 'yyyy-MM-dd')}`}
               onClick={(event) => handleColumnClick(day, event)}
+              onPointerDown={(event) => drag.onColumnPointerDown(event, dayIndex)}
               sx={{
                 flex: 1,
                 minWidth: 0,
@@ -114,12 +134,16 @@ export function TimeGrid({ days, entries, categories, onCreateAt, onSelect, onOp
                 <EntryBlock
                   key={block.item.id}
                   block={block}
-                  color={(block.item.categoryId && categories.get(block.item.categoryId)?.appColor) || UNCATEGORISED_COLOR}
+                  color={colorOf(block.item)}
                   pxPerMinute={PX_PER_MINUTE}
                   onSelect={onSelect}
                   onOpenMenu={onOpenMenu}
+                  onDragStart={(event, kind) => drag.onEntryPointerDown(event, block.item, dayIndex, kind)}
+                  touchPressActive={drag.touchPressActive}
+                  dimmed={drag.preview?.entry?.id === block.item.id}
                 />
               ))}
+              {drag.preview && <DragGhost preview={drag.preview} day={day} color={colorOf(drag.preview.entry)} />}
               {isSameDay(day, now) && (
                 <Box
                   aria-hidden
@@ -150,4 +174,40 @@ export function TimeGrid({ days, entries, categories, onCreateAt, onSelect, onOp
       </Box>
     </Box>
   );
+}
+
+/** The block drawn where a dragged entry (or a new range) will land, with its time range (DRAG-1, DRAG-4). */
+function DragGhost({ preview, day, color }: { preview: DragPreview; day: Date; color: string }) {
+  const item = { start: preview.start.toISOString(), end: preview.end.toISOString() };
+  return layoutDay([item], day).map(({ top, height }) => {
+    const label = formatTimeRange(preview.start, preview.end);
+    return (
+      <Box
+        key="ghost"
+        data-testid="drag-preview"
+        sx={{
+          position: 'absolute',
+          top: top * PX_PER_MINUTE + 1,
+          height: Math.max(height, 15) * PX_PER_MINUTE - 2,
+          left: 1,
+          right: 4,
+          zIndex: 4,
+          pointerEvents: 'none',
+          bgcolor: color,
+          color: readableTextColor(color),
+          borderRadius: 1,
+          boxShadow: 6,
+          px: 0.75,
+          overflow: 'hidden',
+        }}
+      >
+        <Typography variant="caption" component="div" noWrap sx={{ fontWeight: 500, lineHeight: 1.4 }}>
+          {preview.kind === 'create' ? '(No title)' : preview.entry?.title}
+        </Typography>
+        <Typography variant="caption" component="div" noWrap sx={{ lineHeight: 1.3 }}>
+          {label}
+        </Typography>
+      </Box>
+    );
+  });
 }

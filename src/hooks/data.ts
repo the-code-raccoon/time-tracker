@@ -1,14 +1,16 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Category, CategoryInput, ConflictChoice, TimeEntryInput } from '../../shared/types';
+import type { Category, CategoryInput, ConflictChoice, TimeEntry, TimeEntryInput, TimerInput } from '../../shared/types';
 import {
   createCategory,
   createEntry,
   deleteCategory,
   deleteEntry,
+  discardTimer,
   disconnectGoogle,
   fetchCategories,
   fetchGoogleStatus,
   fetchEntries,
+  fetchTimer,
   fetchTitles,
   moveEntriesByTitle,
   fetchConflicts,
@@ -17,8 +19,12 @@ import {
   syncWithGoogle,
   reorderCategories,
   restoreEntry,
+  searchEntries,
+  startTimer,
+  stopTimer,
   updateCategory,
   updateEntry,
+  updateTimer,
 } from '../api';
 
 export function useCategories() {
@@ -46,9 +52,44 @@ function useInvalidateAll() {
     );
 }
 
+export function useSearch(query: string) {
+  return useQuery({
+    queryKey: ['entries', 'search', query],
+    queryFn: () => searchEntries(query),
+    enabled: query.trim().length > 0,
+    placeholderData: keepPreviousData,
+  });
+}
+
+type Times = { start: string; end: string };
+
 export function useEntryMutations() {
+  const queryClient = useQueryClient();
   const onSuccess = useInvalidateAll();
+
+  /** Writes new times into every cached entry list, so a dropped entry stays where it was dropped (DRAG-5). */
+  const setCachedTimes = (id: string, times: Times) =>
+    queryClient.setQueriesData<TimeEntry[]>({ queryKey: ['entries'] }, (entries) =>
+      entries?.map((entry) => (entry.id === id ? { ...entry, ...times } : entry)),
+    );
+
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ entry, times }: { entry: TimeEntry; times: Times }) => updateEntry(entry.id, times),
+    onError: (_error, { entry }) => setCachedTimes(entry.id, { start: entry.start, end: entry.end }),
+    onSettled: onSuccess,
+  });
+
   return {
+    /**
+     * Moves or resizes an entry, showing the change at once and putting it back if the save fails. The cache is
+     * written before the request starts (not in onMutate, which runs a microtask later) so the drag preview can be
+     * cleared without the entry flashing back to its old place.
+     */
+    reschedule(variables: { entry: TimeEntry; times: Times }, options?: Parameters<typeof rescheduleMutation.mutate>[1]) {
+      void queryClient.cancelQueries({ queryKey: ['entries'] });
+      setCachedTimes(variables.entry.id, variables.times);
+      rescheduleMutation.mutate(variables, options);
+    },
     create: useMutation({ mutationFn: (input: TimeEntryInput) => createEntry(input), onSuccess }),
     update: useMutation({
       mutationFn: ({ id, patch }: { id: string; patch: Partial<TimeEntryInput> }) => updateEntry(id, patch),
@@ -122,4 +163,31 @@ export function useResolveConflicts() {
 export function useDisconnectGoogle() {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: disconnectGoogle, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['google'] }) });
+}
+
+export function useTimer() {
+  // TE-5: the timer lives on the server, so check again whenever the app comes back into view
+  // (a timer started on the phone shows up on the desktop).
+  return useQuery({ queryKey: ['timer'], queryFn: fetchTimer, refetchOnWindowFocus: true, staleTime: 30 * 1000 });
+}
+
+export function useTimerMutations() {
+  const queryClient = useQueryClient();
+  const invalidateAll = useInvalidateAll();
+  const setTimer = (timer: unknown) => queryClient.setQueryData(['timer'], timer ?? null);
+  // A 404/409 means another device changed the timer: show what's there now.
+  const onError = () => queryClient.invalidateQueries({ queryKey: ['timer'] });
+  return {
+    start: useMutation({ mutationFn: (input: TimerInput) => startTimer(input), onSuccess: setTimer, onError }),
+    update: useMutation({ mutationFn: (patch: Partial<TimerInput>) => updateTimer(patch), onSuccess: setTimer, onError }),
+    discard: useMutation({ mutationFn: discardTimer, onSuccess: () => setTimer(null), onError }),
+    stop: useMutation({
+      mutationFn: stopTimer,
+      onSuccess: () => {
+        setTimer(null);
+        return invalidateAll();
+      },
+      onError,
+    }),
+  };
 }

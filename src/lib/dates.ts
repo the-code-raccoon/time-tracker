@@ -1,21 +1,30 @@
-import { addDays, format, isSameMonth, isSameYear, startOfDay, startOfWeek } from 'date-fns';
+import { addDays, addMonths, endOfMonth, endOfWeek, format, isSameMonth, isSameYear, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
 
-export type ViewMode = 'day' | 'week' | 'schedule';
+export type ViewMode = 'day' | 'week' | 'month' | 'schedule';
 
-export const VIEW_LABELS: Record<ViewMode, string> = { day: 'Day', week: 'Week', schedule: 'Schedule' };
+export const VIEW_LABELS: Record<ViewMode, string> = { day: 'Day', week: 'Week', month: 'Month', schedule: 'Schedule' };
 
 const SCHEDULE_DAYS = 14;
-const SPAN: Record<ViewMode, number> = { day: 1, week: 7, schedule: SCHEDULE_DAYS };
+const SPAN: Record<Exclude<ViewMode, 'month'>, number> = { day: 1, week: 7, schedule: SCHEDULE_DAYS };
 
-/** Visible [start, end) range for a view, in local time. Weeks start on Sunday, like Google Calendar. */
+/**
+ * Visible [start, end) range for a view, in local time. Weeks start on Sunday, like Google Calendar.
+ * Month view shows whole weeks: from the Sunday on or before the 1st to the Saturday on or after the last day.
+ */
 export function viewRange(view: ViewMode, date: Date): { start: Date; end: Date } {
+  if (view === 'month') {
+    return {
+      start: startOfWeek(startOfMonth(date), { weekStartsOn: 0 }),
+      end: addDays(startOfDay(endOfWeek(endOfMonth(date), { weekStartsOn: 0 })), 1),
+    };
+  }
   const start = view === 'week' ? startOfWeek(date, { weekStartsOn: 0 }) : startOfDay(date);
   return { start, end: addDays(start, SPAN[view]) };
 }
 
 /** The date one period before (-1) or after (+1). */
 export function shiftDate(view: ViewMode, date: Date, direction: 1 | -1): Date {
-  return addDays(date, SPAN[view] * direction);
+  return view === 'month' ? addMonths(date, direction) : addDays(date, SPAN[view] * direction);
 }
 
 export function daysBetween(start: Date, end: Date): Date[] {
@@ -30,6 +39,7 @@ export function daysBetween(start: Date, end: Date): Date[] {
  */
 export function rangeTitle(view: ViewMode, date: Date, short = false): string {
   if (view === 'day') return format(date, short ? 'MMM d' : 'MMMM d, yyyy');
+  if (view === 'month') return format(date, short ? 'MMM yyyy' : 'MMMM yyyy');
   const { start, end } = viewRange(view, date);
   const last = addDays(end, -1);
   if (isSameMonth(start, last)) return format(start, short ? 'MMM yyyy' : 'MMMM yyyy');
@@ -64,4 +74,13 @@ export function snapMinutes(date: Date, step: number): Date {
 export function formatHours(minutes: number): string {
   const hours = minutes / 60;
   return `${hours >= 100 ? Math.round(hours) : Math.round(hours * 10) / 10} h`;
+}
+
+/** Running timer: "4:05", "12:34" or "1:02:03". */
+export function formatElapsed(ms: number): string {
+  const seconds = Math.max(Math.floor(ms / 1000), 0);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = String(seconds % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
 }

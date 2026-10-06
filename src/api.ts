@@ -8,6 +8,8 @@ import type {
   SyncSummary,
   TimeEntry,
   TimeEntryInput,
+  Timer,
+  TimerInput,
   TitleSuggestion,
 } from '../shared/types';
 
@@ -53,6 +55,11 @@ export async function logout(): Promise<void> {
 export function fetchEntries(from: Date, to: Date): Promise<TimeEntry[]> {
   const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
   return request(`/api/entries?${params}`);
+}
+
+/** Search (`/`): entries whose title or notes match, newest first. */
+export function searchEntries(query: string): Promise<TimeEntry[]> {
+  return request(`/api/entries?${new URLSearchParams({ q: query })}`);
 }
 
 export function createEntry(input: TimeEntryInput): Promise<TimeEntry> {
@@ -129,4 +136,25 @@ export function fetchConflicts(): Promise<Conflict[]> {
 
 export function resolveConflicts(resolutions: { entryId: string; choice: ConflictChoice }[]): Promise<{ resolved: number }> {
   return request('/api/sync/resolve', { method: 'POST', body: JSON.stringify({ resolutions }) });
+}
+
+export function fetchTimer(): Promise<Timer | null> {
+  return request('/api/timer');
+}
+
+export function startTimer(input: TimerInput): Promise<Timer> {
+  return request('/api/timer', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateTimer(patch: Partial<TimerInput>): Promise<Timer> {
+  return request('/api/timer', { method: 'PATCH', body: JSON.stringify(patch) });
+}
+
+export function discardTimer(): Promise<void> {
+  return request('/api/timer', { method: 'DELETE' });
+}
+
+/** Stops the timer and logs it; returns the new entry. */
+export function stopTimer(): Promise<TimeEntry> {
+  return request('/api/timer/stop', { method: 'POST' });
 }

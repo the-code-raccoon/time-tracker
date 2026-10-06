@@ -122,6 +122,30 @@ describe('GET /api/entries', () => {
   });
 });
 
+describe('GET /api/entries?q= (search)', () => {
+  const search = (q: string) => readJson<TimeEntry[]>(listEntries(apiRequest(`/api/entries?q=${encodeURIComponent(q)}`)));
+
+  it('finds titles and notes, newest first, case-insensitively', async () => {
+    await create({ title: 'read manga', start: '2026-10-01T10:00:00Z', end: '2026-10-01T11:00:00Z' });
+    await create({ title: 'read pjsk event stories', start: '2026-10-03T10:00:00Z', end: '2026-10-03T11:00:00Z' });
+    await create({ title: 'chill', notes: 'Read a book', start: '2026-10-02T10:00:00Z', end: '2026-10-02T11:00:00Z' });
+    await create({ title: 'work', start: '2026-10-04T10:00:00Z', end: '2026-10-04T11:00:00Z' });
+    expect((await search('READ')).map((e) => e.title)).toEqual(['read pjsk event stories', 'chill', 'read manga']);
+  });
+
+  it('finds the canonical title of an alias (NORM-5) and treats wildcards literally', async () => {
+    await create({ title: 'gym', start: '2026-10-01T10:00:00Z', end: '2026-10-01T11:00:00Z' });
+    await create({ title: 'eat 100% snack', start: '2026-10-02T10:00:00Z', end: '2026-10-02T11:00:00Z' });
+    await create({ title: 'eat 1000 snacks', start: '2026-10-03T10:00:00Z', end: '2026-10-03T11:00:00Z' });
+    expect((await search('cardio')).map((e) => e.title)).toEqual(['exercise']);
+    expect((await search('100%')).map((e) => e.title)).toEqual(['eat 100% snack']);
+  });
+
+  it('rejects an empty query', async () => {
+    expect((await listEntries(apiRequest('/api/entries?q=%20'))).status).toBe(400);
+  });
+});
+
 describe('PATCH /api/entries/:id', () => {
   it('updates only the given fields', async () => {
     const created = await readJson<TimeEntry>(create({ title: 'chill', start: '2026-10-05T16:00:00Z', end: '2026-10-05T17:00:00Z', notes: 'hi' }));

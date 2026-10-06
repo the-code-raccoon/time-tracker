@@ -8,27 +8,43 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Snackbar from '@mui/material/Snackbar';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
-import { addMinutes } from 'date-fns';
-import { useMemo, useState } from 'react';
-import type { Category, TimeEntry } from '../../shared/types';
+import { addMinutes, startOfDay } from 'date-fns';
+import { useMemo, useRef, useState } from 'react';
+import type { Category, TimeEntry, Timer } from '../../shared/types';
 import { ApiError } from '../api';
-import { useCategories, useEntries, useEntryMutations, useGoogleStatus, useSync, useTitles } from '../hooks/data';
+import { useCategories, useEntries, useEntryMutations, useGoogleStatus, useSync, useTimerMutations, useTitles } from '../hooks/data';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { formatSyncSummary } from '../lib/sync';
 import { daysBetween, rangeTitle, shiftDate, snapMinutes, viewRange, type ViewMode } from '../lib/dates';
+import { atWallMinutes, type Times } from '../lib/drag';
+import { minutesOfDay } from '../lib/parse';
 import { CalendarToolbar } from './calendar/CalendarToolbar';
+import { MonthView } from './calendar/MonthView';
 import { ScheduleView } from './calendar/ScheduleView';
 import { TimeGrid } from './calendar/TimeGrid';
 import { EntryContextMenu, type ContextMenuState } from './EntryContextMenu';
 import { EntryDialog, type EntryDraft } from './EntryDialog';
 import { ReconcileDialog } from './ReconcileDialog';
+import { GoToDateDialog } from './shortcuts/GoToDateDialog';
+import { SearchDialog } from './shortcuts/SearchDialog';
+import { ShortcutHelpDialog } from './shortcuts/ShortcutHelpDialog';
+import { TimerControl } from './timer/TimerControl';
 
 const DEFAULT_DURATION_MINUTES = 30;
 
 type Notice = { text: string; undo?: () => void; action?: { label: string; run: () => void } };
 
-type Props = { onOpenSettings: () => void; onLogout: () => void };
+/** Dialogs opened from the toolbar or a shortcut. */
+type Panel = 'search' | 'go-to-date' | 'help' | 'timer' | 'reconcile';
 
-export function AppShell({ onOpenSettings, onLogout }: Props) {
+type Props = {
+  onOpenSettings: () => void;
+  onLogout: () => void;
+  /** False while another page is shown (the calendar stays mounted): keyboard shortcuts are off. */
+  active?: boolean;
+};
+
+export function AppShell({ onOpenSettings, onLogout, active = true }: Props) {
   const theme = useTheme();
   const compact = useMediaQuery(theme.breakpoints.down('sm'));
   const [view, setView] = useState<ViewMode>(() => (compact ? 'day' : 'week'));
@@ -36,6 +52,9 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
   const [draft, setDraft] = useState<EntryDraft | null>(null);
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [panel, setPanel] = useState<Panel | null>(null);
+  // `z` undoes the last undoable action, even after its snackbar has gone.
+  const lastUndo = useRef<(() => void) | null>(null);
 
   const { start, end } = viewRange(view, date);
   const startMs = start.getTime();
@@ -45,15 +64,32 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
   const categories = useCategories();
   const titles = useTitles();
   const mutations = useEntryMutations();
+  const timerMutations = useTimerMutations();
   const syncMutation = useSync();
   const googleStatus = useGoogleStatus();
   const pendingConflicts = googleStatus.data?.configured ? googleStatus.data.pendingConflicts : 0;
-  const [reconciling, setReconciling] = useState(false);
 
   const categoryMap = useMemo(
     () => new Map<string, Category>((categories.data ?? []).map((c) => [c.id, c])),
     [categories.data],
   );
+
+  function notify(next: Notice) {
+    if (next.undo) {
+      const undo = next.undo;
+      lastUndo.current = () => {
+        lastUndo.current = null;
+        undo();
+      };
+    }
+    setNotice(next);
+  }
+
+  function undoLast() {
+    if (!lastUndo.current) return;
+    lastUndo.current();
+    setNotice(null);
+  }
 
   function openCreate(at: Date = snapMinutes(new Date(), 5)) {
     setDraft({ kind: 'create', start: at, end: addMinutes(at, DEFAULT_DURATION_MINUTES) });
@@ -65,26 +101,60 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
 
   async function deleteWithUndo(entry: TimeEntry) {
     await mutations.remove.mutateAsync(entry.id);
-    setNotice({ text: 'Entry deleted', undo: () => mutations.restore.mutateAsync(entry.id).catch(report) });
+    notify({ text: 'Entry deleted', undo: () => mutations.restore.mutateAsync(entry.id).catch(report) });
   }
 
   async function changeCategory(entry: TimeEntry, categoryId: string | null) {
     const previous = entry.categoryId;
     await mutations.update.mutateAsync({ id: entry.id, patch: { categoryId } });
     const name = (categoryId && categoryMap.get(categoryId)?.name) ?? 'no category';
-    setNotice({
+    notify({
       text: `Moved to ${name}`,
       undo: () => mutations.update.mutateAsync({ id: entry.id, patch: { categoryId: previous } }).catch(report),
     });
   }
 
+  /** DRAG-5: a drop saves straight away, with undo. If the save fails the entry goes back. */
+  function reschedule(entry: TimeEntry, times: Times, kind: 'move' | 'resize') {
+    const next = { start: times.start.toISOString(), end: times.end.toISOString() };
+    mutations.reschedule(
+      { entry, times: next },
+      {
+        onSuccess: () =>
+          notify({
+            text: kind === 'move' ? 'Entry moved' : 'Entry resized',
+            undo: () =>
+              mutations.reschedule(
+                { entry: { ...entry, ...next }, times: { start: entry.start, end: entry.end } },
+                { onError: report },
+              ),
+          }),
+        onError: (error) => setNotice({ text: `Couldn't ${kind} the entry: ${error.message}` }),
+      },
+    );
+  }
+
+  /** TE-5: the stopped timer is logged as an entry. Undo deletes it and restarts the timer from its original start. */
+  function timerLogged(entry: TimeEntry, timer: Timer) {
+    notify({
+      text: `Logged ${entry.title}`,
+      action: { label: 'Edit', run: () => setDraft({ kind: 'edit', entry }) },
+      undo: () =>
+        void mutations.remove
+          .mutateAsync(entry.id)
+          .then(() => timerMutations.start.mutateAsync({ title: timer.title, categoryId: timer.categoryId, startedAt: timer.startedAt }))
+          .catch(report),
+    });
+  }
+
   function sync() {
+    if (syncMutation.isPending) return;
     syncMutation.mutate(undefined, {
       onSuccess: (summary) =>
         setNotice({
           text: formatSyncSummary(summary),
           ...(summary.pull.conflicts + summary.push.conflicts > 0 || pendingConflicts > 0
-            ? { action: { label: 'Reconcile', run: () => setReconciling(true) } }
+            ? { action: { label: 'Reconcile', run: () => setPanel('reconcile') } }
             : {}),
         }),
       onError: (error) =>
@@ -107,8 +177,67 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
     });
   }
 
+  function goTo(day: Date, nextView: ViewMode = view) {
+    setDate(day);
+    setView(nextView);
+  }
+
+  /** The entry whose block has keyboard focus (or was last clicked), for `e` and Delete. */
+  function selectedEntry(): TimeEntry | undefined {
+    const id = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('[data-entry-id]')?.dataset.entryId;
+    return id ? entries.data?.find((entry) => entry.id === id) : undefined;
+  }
+
+  const switchTo = (next: ViewMode) => () => setView(next);
+  const deleteSelected = () => {
+    const entry = selectedEntry();
+    if (entry) void deleteWithUndo(entry).catch(report);
+  };
+
+  // §5.7 (dialogs, menus and text fields have their own keys; see useKeyboardShortcuts).
+  useKeyboardShortcuts(active, {
+    k: () => setDate((d) => shiftDate(view, d, -1)),
+    p: () => setDate((d) => shiftDate(view, d, -1)),
+    j: () => setDate((d) => shiftDate(view, d, 1)),
+    n: () => setDate((d) => shiftDate(view, d, 1)),
+    t: () => setDate(new Date()),
+    g: () => setPanel('go-to-date'),
+    d: switchTo('day'),
+    1: switchTo('day'),
+    w: switchTo('week'),
+    2: switchTo('week'),
+    m: switchTo('month'),
+    3: switchTo('month'),
+    a: switchTo('schedule'),
+    5: switchTo('schedule'),
+    c: () => openCreate(),
+    e: () => {
+      const entry = selectedEntry();
+      if (entry) setDraft({ kind: 'edit', entry });
+    },
+    Backspace: deleteSelected,
+    Delete: deleteSelected,
+    z: undoLast,
+    '/': () => setPanel('search'),
+    r: sync,
+    s: onOpenSettings,
+    '?': () => setPanel('help'),
+  });
+
   const openMenu = (entry: TimeEntry, position: { x: number; y: number }) => setMenu({ entry, ...position });
+  const select = (entry: TimeEntry) => setDraft({ kind: 'edit', entry });
   const editing = draft?.kind === 'edit' ? draft.entry : undefined;
+  const timerControl = (variant: 'toolbar' | 'fab') => (
+    <TimerControl
+      variant={variant}
+      categories={categories.data ?? []}
+      titles={titles.data ?? []}
+      dialogOpen={panel === 'timer'}
+      onDialogOpenChange={(open) => setPanel(open ? 'timer' : null)}
+      onLogged={timerLogged}
+      onError={report}
+    />
+  );
 
   return (
     <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
@@ -122,6 +251,8 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
           onPrevious={() => setDate((d) => shiftDate(view, d, -1))}
           onNext={() => setDate((d) => shiftDate(view, d, 1))}
           onCreate={() => openCreate()}
+          onSearch={() => setPanel('search')}
+          timer={compact ? undefined : timerControl('toolbar')}
           onOpenSettings={onOpenSettings}
           onSync={sync}
           syncing={syncMutation.isPending}
@@ -147,12 +278,17 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
 
       <Box component="main" sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {view === 'schedule' ? (
-          <ScheduleView
+          <ScheduleView days={days} entries={entries.data ?? []} categories={categoryMap} onSelect={select} onOpenMenu={openMenu} />
+        ) : view === 'month' ? (
+          <MonthView
+            month={date}
             days={days}
             entries={entries.data ?? []}
             categories={categoryMap}
-            onSelect={(entry) => setDraft({ kind: 'edit', entry })}
+            onSelect={select}
             onOpenMenu={openMenu}
+            onDayClick={(day) => goTo(day, 'day')}
+            onCreateOn={(day) => openCreate(atWallMinutes(day, minutesOfDay(snapMinutes(new Date(), 5))))}
           />
         ) : (
           <TimeGrid
@@ -160,20 +296,22 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
             entries={entries.data ?? []}
             categories={categoryMap}
             onCreateAt={openCreate}
-            onSelect={(entry) => setDraft({ kind: 'edit', entry })}
+            onCreateRange={(times) => setDraft({ kind: 'create', ...times })}
+            onReschedule={reschedule}
+            onSelect={select}
             onOpenMenu={openMenu}
-            onDayClick={(day) => {
-              setDate(day);
-              setView('day');
-            }}
+            onDayClick={(day) => goTo(day, 'day')}
           />
         )}
       </Box>
 
       {compact && (
-        <Fab color="primary" aria-label="Create entry" onClick={() => openCreate()} sx={{ position: 'fixed', right: 16, bottom: 16 }}>
-          <Add />
-        </Fab>
+        <>
+          {timerControl('fab')}
+          <Fab color="primary" aria-label="Create entry" onClick={() => openCreate()} sx={{ position: 'fixed', right: 16, bottom: 16 }}>
+            <Add />
+          </Fab>
+        </>
       )}
 
       <EntryContextMenu
@@ -201,7 +339,29 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
         />
       )}
 
-      {reconciling && <ReconcileDialog onClose={() => setReconciling(false)} />}
+      {panel === 'reconcile' && <ReconcileDialog onClose={() => setPanel(null)} />}
+      {panel === 'help' && <ShortcutHelpDialog onClose={() => setPanel(null)} />}
+      {panel === 'go-to-date' && (
+        <GoToDateDialog
+          current={date}
+          onClose={() => setPanel(null)}
+          onGo={(day) => {
+            setPanel(null);
+            setDate(day);
+          }}
+        />
+      )}
+      {panel === 'search' && (
+        <SearchDialog
+          categories={categoryMap}
+          onClose={() => setPanel(null)}
+          onPick={(entry) => {
+            setPanel(null);
+            goTo(startOfDay(new Date(entry.start)), 'day');
+            setDraft({ kind: 'edit', entry });
+          }}
+        />
+      )}
 
       <Snackbar
         open={!!notice}
@@ -209,19 +369,25 @@ export function AppShell({ onOpenSettings, onLogout }: Props) {
         onClose={(_, reason) => reason !== 'clickaway' && setNotice(null)}
         message={notice?.text}
         action={
-          (notice?.undo || notice?.action) && (
-            <Button
-              color="primary"
-              size="small"
-              onClick={() => {
-                if (notice.undo) notice.undo();
-                else notice.action?.run();
-                setNotice(null);
-              }}
-            >
-              {notice.undo ? 'Undo' : notice.action?.label}
-            </Button>
-          )
+          <>
+            {notice?.action && (
+              <Button
+                color="primary"
+                size="small"
+                onClick={() => {
+                  notice.action?.run();
+                  setNotice(null);
+                }}
+              >
+                {notice.action.label}
+              </Button>
+            )}
+            {notice?.undo && (
+              <Button color="primary" size="small" onClick={undoLast}>
+                Undo
+              </Button>
+            )}
+          </>
         }
       />
     </Box>

@@ -305,6 +305,17 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 - **Reconcile:** *Keep app* records Google's version as seen, and the next push overwrites it (or recreates the event if Google deleted it). *Keep Google* applies Google's version. *Edit and merge* saves the edited entry, then keeps it.
 - **Tokens:** the Google refresh and access tokens are AES-256-GCM encrypted (`TOKEN_ENCRYPTION_KEY`). The Calendar API is called with plain `fetch`, not the `googleapis` package, to keep functions small.
 
+### Implementation notes (M4)
+
+- **Timer (TE-5):** a single `timer` row (migration 0010). `GET/POST/PATCH/DELETE /api/timer` reads, starts, edits (title, category, start time) and discards it; `POST /api/timer/stop` deletes the row and inserts the entry in one statement, so stopping on two devices at once can't log it twice. Start and end are rounded to the nearest 5 minutes and the entry is at least 5 minutes long. A timer that ran over 24 hours is kept so it can be fixed or discarded. The app re-checks the timer when it comes back into view. Undoing a stop deletes the entry and restarts the timer from its original start.
+- **Search (`/`):** `GET /api/entries?q=` matches titles and notes (newest first, 50 results). A query that is an alias also finds its canonical title (NORM-5). Picking a result opens it on its day.
+- **Selected entry (`e`, Delete):** the entry block that has keyboard focus, which is also the last one clicked.
+- **`z`** undoes the last action that offered Undo (delete, category change, move, resize, timer stop), even after its snackbar has gone.
+- **Drag and drop:** a drop updates the cached entry straight away and saves in the background; a failed save puts it back. Touch drags block scrolling only once the long press has fired.
+- **Month view:** each day lists as many entries as fit, then "N more", which opens the day's full list. An entry crossing midnight is listed on both days.
+- **Phones:** the timer is a floating button above Create; Search, Settings and Sign out are in the toolbar's ⋮ menu.
+- **Not done:** the optional custom view (`x` / `4`).
+
 ## 7. Non-functional requirements
 
 | ID    | Requirement                                                                                                                                        |
@@ -358,7 +369,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 3. ✅ **M1b — Editing:** Google Calendar-style date/time controls (§5.2b), entry context menu (§5.2c), Categories page (CAT-7 – CAT-12).
 4. ✅ **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
 5. ✅ **M3 — Push + conflict detection + Reconcile UI**, plus pre-sync and daily backups (BAK-1 – BAK-3).
-6. **M4 — Keyboard shortcuts**, Month view, timer, drag and drop (§5.2d).
+6. ✅ **M4 — Keyboard shortcuts**, Month view, timer, drag and drop (§5.2d).
 7. **M5 — Reporting**, CSV export, PWA install, Backups screen with restore (BAK-4).
 
 ## 11. Open questions
@@ -403,3 +414,4 @@ _None right now._
 | 2026-10-05 | M3 done: push to Google (SYNC-3), two-way Sync button with summary and conflict badge (SYNC-1, SYNC-8), Reconcile screen (SYNC-7), pre-sync and daily backups (BAK-1, BAK-2). Backups screen (BAK-4) moved to M5. |
 | 2026-10-05 | Fixed NORM-8 on import: the most recent colour *that maps to a category* wins. Migrations 0007/0008 repaired 316 imported entries (with a backup) without pushing anything. |
 | 2026-10-05 | Push retries Google rate limits with backoff (a bulk CAT-4 recolour had hit them). Added CAT-13; migration 0009 put the 57 uncategorised default-colour entries in Self-care. |
+| 2026-10-05 | M4 done: keyboard shortcuts (§5.7) with a help dialog, Go to date and search; Month view; server-side timer (migration 0010); drag to move, resize and create in Day and Week views (§5.2d). The optional custom view (`x` / `4`) was left out. |

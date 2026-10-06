@@ -80,6 +80,7 @@ function ScheduleItem({ entry, color, onSelect, onOpenMenu }: ItemProps) {
     <li>
       <ButtonBase
         {...longPress.handlers}
+        data-entry-id={entry.id}
         onClick={() => !longPress.wasLongPress() && onSelect(entry)}
         onContextMenu={(event) => {
           event.preventDefault();

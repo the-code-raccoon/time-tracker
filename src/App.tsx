@@ -56,7 +56,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       {/* The calendar stays mounted (hidden) so its date and view survive a visit to Settings. */}
       <Box sx={{ display: route === 'calendar' ? 'block' : 'none' }}>
-        <AppShell onOpenSettings={() => navigate('settings')} onLogout={handleLogout} />
+        <AppShell onOpenSettings={() => navigate('settings')} onLogout={handleLogout} active={route === 'calendar'} />
       </Box>
       {route === 'settings' && <SettingsPage onBack={() => navigate('calendar')} />}
     </QueryClientProvider>

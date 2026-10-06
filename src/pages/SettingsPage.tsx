@@ -7,6 +7,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { CategoriesSection } from '../components/settings/CategoriesSection';
 import { GoogleCalendarSection, type OAuthResult } from '../components/settings/GoogleCalendarSection';
 
@@ -23,6 +24,8 @@ type Props = { onBack: () => void };
 
 export function SettingsPage({ onBack }: Props) {
   const [oauthResult] = useState(takeOAuthResult);
+  // §5.7: Esc goes back (dialogs on this page close themselves first).
+  useKeyboardShortcuts(true, { Escape: onBack });
   return (
     <Box sx={{ minHeight: '100dvh' }}>
       <AppBar position="sticky" sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.default' }}>
