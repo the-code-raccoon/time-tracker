@@ -66,9 +66,37 @@ Server imports use explicit `.js` extensions (Node ESM), so they also resolve on
 
 ## Deploying to Vercel
 
-1. Import the repo in Vercel. `vercel.json` sets the build (`yarn vercel-build`, which runs the tests before building).
-2. Add `APP_PASSWORD_HASH`, `SESSION_SECRET`, `DATABASE_URL`, the `GOOGLE_*` variables and `TOKEN_ENCRYPTION_KEY` under **Settings → Environment Variables**.
-3. Run `yarn db:migrate` locally whenever a new migration is added (migrations are not run during the build).
+`vercel.json` sets the build (`yarn vercel-build`, which runs the tests before building). Deploys are done with the [Vercel CLI](https://vercel.com/docs/cli).
+
+### One-time setup
+
+```bash
+npx vercel login
+npx vercel link             # pick the existing time-tracker project; writes the git-ignored .vercel/
+```
+
+### Environment variables
+
+Production values live in `.env.production` (git-ignored, same keys as `.env.example`). `GOOGLE_REDIRECT_URI` must be the production URL, `https://<your-app>.vercel.app/api/google/callback`, and that URL must also be an authorized redirect URI in Google Cloud Console (see [Google Calendar](#google-calendar)).
+
+Push every variable to the Production environment (`--force` overwrites existing values):
+
+```bash
+grep -E '^[A-Z_]+=' .env.production | while IFS='=' read -r name value; do
+  printf '%s' "$value" | npx vercel env add "$name" production --force
+done
+```
+
+Check them with `npx vercel env ls production`. Changed variables only apply to new deployments, so redeploy afterwards.
+
+### Deploy
+
+```bash
+yarn db:migrate             # only if there are new migrations; they are not run during the build
+npx vercel --prod
+```
+
+`npx vercel` (without `--prod`) makes a preview deployment instead. `.vercelignore` keeps `.env*` files and `credentials.json` out of the upload.
 
 ## Testing
 

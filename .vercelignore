@@ -1,0 +1,8 @@
+# Keep local secrets and build output out of `vercel deploy` uploads (Vercel installs and builds remotely).
+.env*
+!.env.example
+credentials.json
+token.json
+node_modules/
+dist/
+coverage/
