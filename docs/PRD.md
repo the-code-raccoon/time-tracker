@@ -133,7 +133,7 @@ The date and time controls in the entry editor copy Google Calendar's:
 | ID | Requirement |
 |---|---|
 | DT-1 | **Layout:** start date, start time, "to", end time, end date, then the time zone shown read-only. Each control is a compact filled field like Google Calendar's. On phones the row wraps, with start and end on separate lines. |
-| DT-2 | **Date picker:** clicking a date opens a popover month calendar. It has a month/year header with ‹ › arrows, weeks starting on Sunday, days from the next and previous months shown dimmed, and the selected day as a filled circle. The text is selected on focus so you can type over it. |
+| DT-2 | **Date picker:** clicking a date opens a popover month calendar. It has a month/year header with ‹ › arrows, weeks starting on Sunday, days from the next and previous months shown dimmed, and the selected day as a filled circle. **Today is marked** with a ring in the accent colour and bold text; if today is also the selected day, the ring is drawn just outside the filled circle. The text is selected on focus so you can type over it. |
 | DT-3 | **Typed dates:** dates can be typed and are parsed on Enter or blur, then shown as `Oct 5, 2026`. Accepted forms include `oct 5`, `Oct 5`, `october 5`, `5 oct`, `10/5`, `oct 5 2027` and `10/5/2027`. **A missing year means the current year.** Input that can't be parsed goes back to the previous value. |
 | DT-4 | **Time picker:** clicking a time opens a list in 15-minute steps. In the end-time list each option also shows the resulting duration, e.g. `10:00am (30 mins)`, like Google Calendar. Times can also be typed, and any 5-minute value is accepted. They are shown as `9:30am`. |
 | DT-5 | **Typed times:** accepted forms include `9:30`, `930`, `9`, `9:30p`, `9:30 pm`, `9.30pm` and `21:30`. |
@@ -368,3 +368,4 @@ _None right now._
 | 2026-10-05 | Added Google Calendar-style date/time editing (§5.2b), entry context menu (§5.2c) and a Categories page (CAT-7 – CAT-12), as new milestone M1b. |
 | 2026-10-05 | DT-6: the end time's am/pm is inferred from the start time, as Google Calendar does. |
 | 2026-10-05 | M1b done: Google Calendar-style date/time editor, right-click/long-press entry menu with undo, Categories page. Added the `backups` table (migration 0003); category delete/merge and move-by-title take a backup first. |
+| 2026-10-05 | DT-2: the date picker's calendar marks today. |

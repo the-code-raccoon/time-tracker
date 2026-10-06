@@ -96,6 +96,15 @@ describe('EntryDialog', () => {
     expect(screen.getByRole('grid', { name: 'November 2026' })).toBeInTheDocument();
   });
 
+  it('marks today in the calendar popup (DT-2)', async () => {
+    const { user } = setup(undefined, { kind: 'create', start: new Date('2026-10-09T09:30'), end: new Date('2026-10-09T10:00') });
+    await user.click(field('Start date'));
+    const today = screen.getByRole('button', { name: 'Monday, October 5, 2026' });
+    expect(today).toHaveAttribute('aria-current', 'date');
+    expect(today).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'Friday, October 9, 2026' })).not.toHaveAttribute('aria-current');
+  });
+
   it('marks the end red and blocks saving when it is before the start (DT-7)', async () => {
     const { user, onSubmit } = setup();
     await user.type(screen.getByRole('combobox', { name: 'Title' }), 'chill');

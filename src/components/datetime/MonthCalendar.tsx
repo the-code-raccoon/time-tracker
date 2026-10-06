@@ -47,13 +47,14 @@ export function MonthCalendar({ selected, onSelect }: Props) {
               onClick={() => onSelect(day)}
               aria-label={format(day, 'EEEE, MMMM d, yyyy')}
               aria-pressed={isSelected}
+              aria-current={isToday ? 'date' : undefined}
               sx={{
                 justifySelf: 'center',
                 width: 32,
                 height: 32,
                 borderRadius: '50%',
                 fontSize: 12,
-                fontWeight: 500,
+                fontWeight: isToday ? 700 : 500,
                 color: isSelected
                   ? 'primary.contrastText'
                   : isToday
@@ -62,6 +63,13 @@ export function MonthCalendar({ selected, onSelect }: Props) {
                       ? 'text.primary'
                       : 'text.disabled',
                 bgcolor: isSelected ? 'primary.main' : undefined,
+                // DT-2: today is ringed; if it's also selected, the ring sits outside the filled circle.
+                boxShadow: (theme) =>
+                  !isToday
+                    ? 'none'
+                    : isSelected
+                      ? `0 0 0 2px ${theme.palette.background.paper}, 0 0 0 3.5px ${theme.palette.primary.main}`
+                      : `inset 0 0 0 1.5px ${theme.palette.primary.main}`,
                 '&:hover': { bgcolor: isSelected ? 'primary.main' : 'action.hover' },
               }}
             >
