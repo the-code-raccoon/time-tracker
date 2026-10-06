@@ -98,7 +98,7 @@ There is one user, the owner, who uses the app from:
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | TE-1  | Create, edit and delete time entries: title, start, end, category (= GCal colour), and optional notes.                                                                                                |
 | TE-1a | Title field autocompletes from past titles (case-insensitive), and a picked suggestion also fills in that title's usual category.                                                                     |
-| TE-1b | Time pickers snap to 5-minute increments.                                                                                                                                                             |
+| TE-1b | Times can be set to any 5-minute increment. Date and time entry follows §5.2b. |
 | TE-1c | Overlapping entries are allowed and shown side by side, like Google Calendar. Entries may cross midnight.                                                                                             |
 | TE-2  | Views: **Day**, **Week**, **Month** and **Schedule/Agenda**, laid out like Google Calendar.                                                                                                           |
 | TE-3  | Create an entry by click-dragging on the grid (desktop) or tapping and holding (touch).                                                                                                               |
@@ -117,6 +117,41 @@ There is one user, the owner, who uses the app from:
 | CAT-4 | Changing a category's GCal colour marks all of its linked entries for update. They are recoloured in Google Calendar on the next sync, with a backup taken first (BAK-1). |
 | CAT-5 | Categories can be created, renamed and merged. Entries can be moved between categories in bulk (e.g. "all `shower` entries → Self-care").                                 |
 | CAT-6 | Seeded from the table in §2.1.                                                                                                                                            |
+| CAT-7 | A **Categories** page (Settings → Categories, also opened with `s`) lists every category with its app colour, name, GCal colour, number of entries and total hours. |
+| CAT-8 | On that page you can create a category, rename it, and reorder categories by dragging. The order is used in pickers and reports. |
+| CAT-9 | **App colour** is picked from a palette (Google's 11 colours plus extra shades) or a custom hex value, with a live preview. The change applies retroactively (CAT-3). |
+| CAT-10 | **GCal colour** is picked from Google's 11 named colours (Tomato, Flamingo, Tangerine, Banana, Sage, Basil, Peacock, Blueberry, Lavender, Grape, Graphite) or "Calendar default". Before saving, a warning says how many events will be recoloured in Google Calendar on the next sync (CAT-4). |
+| CAT-11 | **Delete** a category: you choose where its entries go (another category, or none). **Merge** a category into another moves all of its entries. Both take a backup first (§5.5). |
+| CAT-12 | **Move by title:** pick a title or activity (e.g. `shower`) and move all of its entries to a category in one step (CAT-5). |
+
+### 5.2b Entry editor: date & time (same as Google Calendar)
+
+The date and time controls in the entry editor copy Google Calendar's:
+
+`[Oct 5, 2026] [9:30am] to [5:10pm] [Oct 5, 2026]  (GMT-04:00) Eastern Time - Toronto`
+
+| ID | Requirement |
+|---|---|
+| DT-1 | **Layout:** start date, start time, "to", end time, end date, then the time zone shown read-only. Each control is a compact filled field like Google Calendar's. On phones the row wraps, with start and end on separate lines. |
+| DT-2 | **Date picker:** clicking a date opens a popover month calendar. It has a month/year header with ‹ › arrows, weeks starting on Sunday, days from the next and previous months shown dimmed, and the selected day as a filled circle. The text is selected on focus so you can type over it. |
+| DT-3 | **Typed dates:** dates can be typed and are parsed on Enter or blur, then shown as `Oct 5, 2026`. Accepted forms include `oct 5`, `Oct 5`, `october 5`, `5 oct`, `10/5`, `oct 5 2027` and `10/5/2027`. **A missing year means the current year.** Input that can't be parsed goes back to the previous value. |
+| DT-4 | **Time picker:** clicking a time opens a list in 15-minute steps. In the end-time list each option also shows the resulting duration, e.g. `10:00am (30 mins)`, like Google Calendar. Times can also be typed, and any 5-minute value is accepted. They are shown as `9:30am`. |
+| DT-5 | **Typed times:** accepted forms include `9:30`, `930`, `9`, `9:30p`, `9:30 pm`, `9.30pm` and `21:30`. |
+| DT-6 | **am/pm inference:** a 12-hour time typed without am/pm becomes **the first matching time at or after the current time of day**. At 3:00pm, `9:30` → `9:30pm` and `4` → `4pm`. If both the am and the pm time have already passed today (at 11pm, `9:30`), it becomes pm. Times from 13:00 to 23:59, and `0:xx`, are taken as 24-hour times. |
+| DT-7 | **End before start:** if the end date/time is earlier than the start, the end time and end date fields turn **red**, like Google Calendar (second screenshot), and Save is disabled until it's fixed. Nothing is auto-corrected. |
+| DT-8 | **Duration control:** a duration field (e.g. `30 min`, `1 h 30 min`) with quick presets (5, 10, 15, 30, 45 min, 1 h, 1 h 30 min, 2 h) that also accepts typing (`90`, `1:30`, `1h30`, `1.5h`). Setting it sets **end = start + duration**. Changing the end updates the duration shown. |
+| DT-9 | **Moving the start keeps the duration:** changing the start date or time moves the end by the same amount. Example: 9:30am–10:00am, change the start to 9:40am → 9:40am–10:10am. If the times are currently invalid (DT-7), the last valid duration is used. |
+| DT-10 | Changing the end date or time never moves the start. |
+
+### 5.2c Entry context menu
+
+| ID | Requirement |
+|---|---|
+| CTX-1 | **Right-clicking** an entry in any view (Day, Week, Month, Schedule) opens a custom menu at the pointer instead of the browser's. On touch screens, **long-press** opens the same menu. It can also be opened from the keyboard with the context-menu key or Shift+F10 on the focused entry. |
+| CTX-2 | **Change category:** a row of colour circles, one per category, like Google Calendar's colour picker. Hovering shows the category name and the current one has a check mark. Clicking a circle applies the change immediately, without opening the editor. |
+| CTX-3 | **Delete entry:** deletes immediately and shows a "Entry deleted · Undo" snackbar. |
+| CTX-4 | **Duplicate entry:** creates a copy with the same title, category, notes and times, then opens it in the editor so it can be moved. The copy isn't saved until you click Save, like Google Calendar. |
+| CTX-5 | The menu closes on Escape, on a click outside, or after an action. It stays inside the viewport near screen edges. |
 
 ### 5.3 Google Calendar sync (manual, two-way)
 
@@ -189,7 +224,7 @@ These are desktop only. They are turned off while a text input has focus. Source
 | `Esc`                  | Close the dialog or go back         |
 | `/`                    | Search                              |
 | `r`                    | Refresh (in this app: **run sync**) |
-| `s`                    | Settings                            |
+| `s`                    | Settings (opens the Categories page until there are more settings) |
 | `?`                    | Show the shortcut help dialog       |
 
 ## 6. Data model (draft)
@@ -293,10 +328,11 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 
 1. ✅ **M0 — Scaffold:** Vite + React + TS + MUI dark theme, Yarn, Vitest suite, Vercel config, password login.
 2. ✅ **M1 — Entries:** CRUD with database persistence; Day, Week and Schedule views; responsive layout.
-3. **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
-4. **M3 — Push + conflict detection + Reconcile UI.**
-5. **M4 — Keyboard shortcuts**, Month view, timer, drag to create/move/resize (TE-3, TE-4; M1 has click-to-create and edit via dialog).
-6. **M5 — Reporting**, CSV export, PWA install.
+3. **M1b — Editing:** Google Calendar-style date/time controls (§5.2b), entry context menu (§5.2c), Categories page (CAT-7 – CAT-12).
+4. **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
+5. **M3 — Push + conflict detection + Reconcile UI.**
+6. **M4 — Keyboard shortcuts**, Month view, timer, drag to create/move/resize (TE-3, TE-4; M1 has click-to-create and edit via dialog).
+7. **M5 — Reporting**, CSV export, PWA install.
 
 ## 11. Open questions
 
@@ -315,7 +351,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 
 ### Still open
 
-_None right now._
+1. **am/pm for the end time (DT-6):** should the end time be inferred from the current time like the start, or as the first match *after the start time*, which is what Google Calendar does? With a 9:30am start, typing `10` for the end would give 10am instead of 10pm. _Proposed: the start follows DT-6, and the end is the first match after the start._
 
 ## Changelog
 
@@ -328,3 +364,4 @@ _None right now._
 | 2026-10-05 | Added Vitest test-suite requirement. |
 | 2026-10-05 | M0 done: scaffold, MUI dark theme, password login, Vitest. The login rate limit is in memory until Postgres arrives in M1. happy-dom replaces jsdom (current jsdom needs Node ≥ 22.19). |
 | 2026-10-05 | M1 done: Postgres schema (migrations 0001–0002, RLS on), entries CRUD API, Day/Week/Schedule views, entry dialog with title autocomplete. Login rate limit now in Postgres. Drag interactions moved to M4. |
+| 2026-10-05 | Added Google Calendar-style date/time editing (§5.2b), entry context menu (§5.2c) and a Categories page (CAT-7 – CAT-12), as new milestone M1b. |
