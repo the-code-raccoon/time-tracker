@@ -202,6 +202,41 @@ describe('AppShell', () => {
       await waitFor(() => expect(requestsTo(fetchMock, 'DELETE', `/api/entries/${copy.id}`)).toHaveLength(1));
     });
 
+    it('moves an entry to start when the previous one ends, keeping its duration, with undo (CTX-7)', async () => {
+      const user = userEvent.setup();
+      const work = entry({ title: 'work', start: new Date('2026-10-07T08:00').toISOString(), end: new Date('2026-10-07T09:40').toISOString() });
+      const breakfast = entry({ title: 'eat breakfast', start: new Date('2026-10-07T07:30').toISOString(), end: new Date('2026-10-07T08:00').toISOString() });
+      const fetchMock = mockApi({ 'PATCH /api/entries/*': () => ({ status: 200, body: existing }) }, [breakfast, work, existing]);
+      renderWithProviders(<AppShell onOpenSettings={() => {}} onLogout={() => {}} />);
+
+      fireEvent.contextMenu(await screen.findByRole('button', { name: /^chill,/ }));
+      await user.click(screen.getByRole('menuitem', { name: 'Move after previous entry' }));
+      await waitFor(() => expect(requestsTo(fetchMock, 'PATCH', `/api/entries/${existing.id}`)).toHaveLength(1));
+      expect(JSON.parse(String(requestsTo(fetchMock, 'PATCH', '/api/entries/')[0][1]?.body))).toEqual({
+        start: new Date('2026-10-07T09:40').toISOString(),
+        end: new Date('2026-10-07T17:40').toISOString(),
+      });
+      expect(await screen.findByText('Moved to 9:40 am, after work')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Undo' }));
+      await waitFor(() => expect(requestsTo(fetchMock, 'PATCH', '/api/entries/')).toHaveLength(2));
+      expect(JSON.parse(String(requestsTo(fetchMock, 'PATCH', '/api/entries/')[1][1]?.body))).toEqual({ start: existing.start, end: existing.end });
+    });
+
+    it.each([
+      ['there is no earlier entry', [], 'No earlier entry to move after'],
+      ['it already starts when the previous one ends', [entry({ title: 'work', start: new Date('2026-10-07T08:00').toISOString(), end: existing.start })], 'Already right after work'],
+    ])('leaves the entry alone when %s (CTX-7)', async (_, others, message) => {
+      const user = userEvent.setup();
+      const fetchMock = mockApi({}, [...others, existing]);
+      renderWithProviders(<AppShell onOpenSettings={() => {}} onLogout={() => {}} />);
+
+      fireEvent.contextMenu(await screen.findByRole('button', { name: /^chill,/ }));
+      await user.click(screen.getByRole('menuitem', { name: 'Move after previous entry' }));
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(requestsTo(fetchMock, 'PATCH', '/api/entries/')).toHaveLength(0);
+    });
+
     it('opens on long-press on touch screens (CTX-1)', async () => {
       vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
       vi.setSystemTime(NOW);

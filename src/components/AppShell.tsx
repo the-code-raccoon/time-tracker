@@ -11,11 +11,11 @@ import { useTheme } from '@mui/material/styles';
 import { addDays, addMinutes, format, startOfDay } from 'date-fns';
 import { useMemo, useRef, useState } from 'react';
 import type { Category, TimeEntry, Timer } from '../../shared/types';
-import { ApiError } from '../api';
+import { ApiError, fetchPreviousEntry } from '../api';
 import { useCategories, useEntries, useEntryMutations, useGoogleStatus, useSync, useTimerMutations, useTitles } from '../hooks/data';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { formatSyncSummary } from '../lib/sync';
-import { daysBetween, rangeTitle, shiftDate, snapMinutes, viewRange, type ViewMode } from '../lib/dates';
+import { daysBetween, formatTime, rangeTitle, shiftDate, snapMinutes, viewRange, type ViewMode } from '../lib/dates';
 import { atWallMinutes, type Times } from '../lib/drag';
 import { minutesOfDay } from '../lib/parse';
 import { CalendarToolbar } from './calendar/CalendarToolbar';
@@ -116,14 +116,14 @@ export function AppShell({ onOpenSettings, onOpenReports = () => {}, onLogout, a
   }
 
   /** DRAG-5: a drop saves straight away, with undo. If the save fails the entry goes back. */
-  function reschedule(entry: TimeEntry, times: Times, kind: 'move' | 'resize') {
+  function reschedule(entry: TimeEntry, times: Times, kind: 'move' | 'resize', text = kind === 'move' ? 'Entry moved' : 'Entry resized') {
     const next = { start: times.start.toISOString(), end: times.end.toISOString() };
     mutations.reschedule(
       { entry, times: next },
       {
         onSuccess: () =>
           notify({
-            text: kind === 'move' ? 'Entry moved' : 'Entry resized',
+            text,
             undo: () =>
               mutations.reschedule(
                 { entry: { ...entry, ...next }, times: { start: entry.start, end: entry.end } },
@@ -192,6 +192,16 @@ export function AppShell({ onOpenSettings, onOpenReports = () => {}, onLogout, a
       text: `Duplicated to ${format(start, 'EEE, MMM d')}`,
       undo: () => mutations.remove.mutateAsync(copy.id).catch(report),
     });
+  }
+
+  /** CTX-7: moves the entry to start when the previous one (TE-8) ends, keeping its duration, with undo. */
+  async function moveAfterPrevious(entry: TimeEntry) {
+    const previous = await fetchPreviousEntry(new Date(entry.start));
+    if (!previous) return setNotice({ text: 'No earlier entry to move after' });
+    const start = new Date(previous.end);
+    if (start.getTime() === new Date(entry.start).getTime()) return setNotice({ text: `Already right after ${previous.title}` });
+    const end = new Date(start.getTime() + new Date(entry.end).getTime() - new Date(entry.start).getTime());
+    reschedule(entry, { start, end }, 'move', `Moved to ${formatTime(start)}, after ${previous.title}`);
   }
 
   function goTo(day: Date, nextView: ViewMode = view) {
@@ -339,6 +349,7 @@ export function AppShell({ onOpenSettings, onOpenReports = () => {}, onLogout, a
         onChangeCategory={(entry, categoryId) => void changeCategory(entry, categoryId).catch(report)}
         onDuplicate={duplicate}
         onDuplicateNextDay={(entry) => void duplicateToNextDay(entry).catch(report)}
+        onMoveAfterPrevious={(entry) => void moveAfterPrevious(entry).catch(report)}
         onDelete={(entry) => void deleteWithUndo(entry).catch(report)}
       />
 
