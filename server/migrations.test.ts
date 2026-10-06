@@ -82,3 +82,30 @@ describe('0008_repair_norm8_from_colours', () => {
     await db.close();
   });
 });
+
+describe('0011_cancelled_gcal_event', () => {
+  it('records synced deletions as cancelled events and leaves pending ones alone', async () => {
+    const db = await createTestDb();
+    const insert = (gcalId: string, deleted: string | null, synced: string | null) =>
+      db.query(
+        `insert into time_entries (title, starts_at, ends_at, gcal_event_id, gcal_event, deleted_at, last_synced_at)
+         values ('x', now(), now() + interval '1 hour', $1, jsonb_build_object('id', $1::text, 'status', 'confirmed'), $2, $3)`,
+        [gcalId, deleted, synced],
+      );
+    await insert('synced', '2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z'); // deletion reached Google (or came from it)
+    await insert('pending', '2026-10-03T00:00:00Z', '2026-10-02T00:00:00Z'); // deleted in the app, not pushed yet
+    await insert('live', null, '2026-10-02T00:00:00Z');
+
+    await db.exec(`begin; ${sqlOf('0011_cancelled_gcal_event.sql')} commit;`);
+
+    const rows = await db.query<{ gcal_event_id: string; status: string }>(
+      `select gcal_event_id, gcal_event ->> 'status' as status from time_entries order by gcal_event_id`,
+    );
+    expect(rows).toEqual([
+      { gcal_event_id: 'live', status: 'confirmed' },
+      { gcal_event_id: 'pending', status: 'confirmed' },
+      { gcal_event_id: 'synced', status: 'cancelled' },
+    ]);
+    await db.close();
+  });
+});

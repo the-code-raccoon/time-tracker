@@ -85,8 +85,8 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
 
   const inserts: (EntryFields & { gcal_event: GoogleEvent })[] = [];
   const updates: (EntryFields & { id: string; gcal_event: GoogleEvent })[] = [];
-  const deletes: { id: string; hash: string }[] = [];
-  const seen: { id: string; hash: string }[] = [];
+  const deletes: { id: string; hash: string; event: GoogleEvent }[] = [];
+  const seen: { id: string; hash: string; event: GoogleEvent }[] = [];
   const conflicts: { entry_id: string; remote_event: GoogleEvent }[] = [];
   let skipped = 0;
 
@@ -108,10 +108,10 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
     const removedInGoogle = result.kind !== 'entry';
 
     if (!changedInApp) {
-      if (removedInGoogle) deletes.push({ id: entry.id, hash });
+      if (removedInGoogle) deletes.push({ id: entry.id, hash, event });
       else updates.push({ ...result.fields, id: entry.id, gcal_event: event }); // also revives an entry Google had deleted
     } else if (removedInGoogle && deletedInApp) {
-      seen.push({ id: entry.id, hash }); // deleted on both sides: nothing to reconcile
+      seen.push({ id: entry.id, hash, event }); // deleted on both sides: nothing to reconcile
     } else {
       conflicts.push({ entry_id: entry.id, remote_event: event });
     }
@@ -138,8 +138,9 @@ export async function pull(db: Db, env: GoogleEnv): Promise<PullSummary> {
   }
   if (deletes.length > 0 || seen.length > 0) {
     await db.query(
-      `update time_entries e set deleted_at = coalesce(e.deleted_at, now()), gcal_remote_hash = x.hash, updated_at = now()
-         from jsonb_to_recordset($1::text::jsonb) as x(id uuid, hash text)
+      `update time_entries e set deleted_at = coalesce(e.deleted_at, now()), gcal_remote_hash = x.hash, gcal_event = x.event,
+              updated_at = now()
+         from jsonb_to_recordset($1::text::jsonb) as x(id uuid, hash text, event jsonb)
         where e.id = x.id`,
       [asJson([...deletes, ...seen])],
     );

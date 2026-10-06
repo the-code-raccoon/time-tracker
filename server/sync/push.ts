@@ -115,7 +115,7 @@ async function backupBeforePush(db: Db, rows: PendingRow[], fetchEvent: (id: str
 }
 
 /** Runs `tasks` with a small concurrency limit, starting no new task once `deadline` has passed. Returns how many never started. */
-async function runPool(tasks: (() => Promise<void>)[], concurrency: number, deadline: number): Promise<number> {
+export async function runPool(tasks: (() => Promise<void>)[], concurrency: number, deadline: number): Promise<number> {
   let next = 0;
   let skipped = 0;
   const worker = async () => {
@@ -169,7 +169,12 @@ export async function push(db: Db, env: GoogleEnv, { budgetMs = 40_000, concurre
         summary.updated++;
       } else {
         await deleteEvent(accessToken, env.calendarId, row.gcal_event_id!, row.gcal_etag);
-        await db.query('update time_entries set last_synced_hash = app_hash, last_synced_category_id = category_id, last_synced_at = now() where id = $1', [row.id]);
+        await db.query(
+          `update time_entries set gcal_event = jsonb_build_object('id', gcal_event_id, 'status', 'cancelled'),
+                  last_synced_hash = app_hash, last_synced_category_id = category_id, last_synced_at = now()
+            where id = $1`,
+          [row.id],
+        );
         summary.deleted++;
       }
     } catch (error) {

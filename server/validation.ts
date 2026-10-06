@@ -114,6 +114,21 @@ export function parseTitle(value: unknown): string {
   return title;
 }
 
+/** `from`/`to` for reports and exports: up to ~400 days, plus the time zone that defines the days (TE-7). */
+export function parseReportRange(url: URL): { from: Date; to: Date; timeZone: string } {
+  const from = new Date(parseDate(url.searchParams.get('from') ?? undefined, 'from'));
+  const to = new Date(parseDate(url.searchParams.get('to') ?? undefined, 'to'));
+  if (to <= from) throw new HttpError(400, 'to must be after from');
+  if (to.getTime() - from.getTime() > 400 * MAX_ENTRY_MS) throw new HttpError(400, 'Range can be at most 400 days');
+  const timeZone = url.searchParams.get('tz') ?? 'America/Toronto';
+  try {
+    new Intl.DateTimeFormat('en', { timeZone });
+  } catch {
+    throw new HttpError(400, 'tz must be an IANA time zone');
+  }
+  return { from, to, timeZone };
+}
+
 /** `q` for searching entries: normalised like a title (NORM-1), so "Make+eat" finds "make + eat lunch". */
 export function parseSearchQuery(url: URL): string | null {
   const q = url.searchParams.get('q');

@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Category, CategoryInput, ConflictChoice, TimeEntry, TimeEntryInput, TimerInput } from '../../shared/types';
+import type { Category, CategoryInput, ConflictChoice, RestoreTarget, TimeEntry, TimeEntryInput, TimerInput } from '../../shared/types';
 import {
   createCategory,
   createEntry,
@@ -9,7 +9,10 @@ import {
   disconnectGoogle,
   fetchCategories,
   fetchGoogleStatus,
+  fetchBackup,
+  fetchBackups,
   fetchEntries,
+  fetchReport,
   fetchTimer,
   fetchTitles,
   moveEntriesByTitle,
@@ -18,6 +21,7 @@ import {
   resolveConflicts,
   syncWithGoogle,
   reorderCategories,
+  restoreBackup,
   restoreEntry,
   searchEntries,
   startTimer,
@@ -48,7 +52,7 @@ function useInvalidateAll() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all(
-      ['entries', 'titles', 'categories', 'google', 'conflicts'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
+      ['entries', 'titles', 'categories', 'google', 'conflicts', 'reports', 'backups'].map((key) => queryClient.invalidateQueries({ queryKey: [key] })),
     );
 }
 
@@ -190,4 +194,27 @@ export function useTimerMutations() {
       onError,
     }),
   };
+}
+
+export function useReport(from: Date, to: Date) {
+  return useQuery({
+    queryKey: ['reports', from.toISOString(), to.toISOString()],
+    queryFn: () => fetchReport(from, to),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useBackups() {
+  return useQuery({ queryKey: ['backups'], queryFn: fetchBackups });
+}
+
+export function useBackup(id: string | null) {
+  return useQuery({ queryKey: ['backups', id], queryFn: () => fetchBackup(id!), enabled: id !== null });
+}
+
+export function useRestoreBackup() {
+  return useMutation({
+    mutationFn: ({ id, target, keys }: { id: string; target: RestoreTarget; keys?: string[] }) => restoreBackup(id, target, keys),
+    onSuccess: useInvalidateAll(),
+  });
 }

@@ -317,4 +317,13 @@ describe('AppShell', () => {
     expect(await screen.findByText('OCT, WED')).toBeInTheDocument();
     expect(screen.getByText('8 h')).toBeInTheDocument();
   });
+
+  it('opens Reports from the toolbar', async () => {
+    const user = userEvent.setup();
+    const onOpenReports = vi.fn();
+    mockApi();
+    renderWithProviders(<AppShell onOpenSettings={() => {}} onOpenReports={onOpenReports} onLogout={() => {}} />);
+    await user.click(screen.getByRole('button', { name: 'Reports' }));
+    expect(onOpenReports).toHaveBeenCalled();
+  });
 });

@@ -108,3 +108,64 @@ export type ConflictSide = {
 export type Conflict = { entryId: string; detectedAt: string; app: ConflictSide; google: ConflictSide };
 
 export type ConflictChoice = 'app' | 'google';
+
+/** REP-1/REP-2: time per category over a range of local days. Minutes are clipped to the range and to each day. */
+export type Report = {
+  /** One row per local day in the range, keyed by category id ('' = uncategorised). */
+  days: { date: string; minutes: Record<string, number> }[];
+  categories: { categoryId: string | null; minutes: number; entries: number }[];
+  /** Most time first (NORM-5: titles are canonical activities). */
+  activities: { title: string; categoryId: string | null; minutes: number; entries: number }[];
+};
+
+export type BackupTrigger = 'pre-sync' | 'daily' | 'manual' | 'category-change' | 'bulk-move';
+
+export type BackupSummary = {
+  id: string;
+  createdAt: string;
+  trigger: BackupTrigger;
+  description: string | null;
+  entryCount: number;
+  eventCount: number;
+};
+
+/** One side of a backed-up item, as it was when the backup was taken. */
+export type BackupCopy = {
+  deleted: boolean;
+  title: string | null;
+  start: string | null;
+  end: string | null;
+  categoryId: string | null;
+  notes: string | null;
+  /** Google's copy only: its colour. */
+  colorId?: string | null;
+};
+
+/** An entry and/or its Google event in a backup (BAK-4). */
+export type BackupItem = {
+  /** The entry id, or `event:<Google event id>` for an event with no backed-up entry. */
+  key: string;
+  entryId: string | null;
+  eventId: string | null;
+  app: BackupCopy | null;
+  google: BackupCopy | null;
+  /** The copy differs from what the app has now / what Google had at the last sync. */
+  appChanged: boolean;
+  googleChanged: boolean;
+};
+
+export type BackupDetail = BackupSummary & { items: BackupItem[] };
+
+export type RestoreTarget = 'app' | 'google' | 'both';
+
+export type RestoreSummary = {
+  /** Entries put back in the app. */
+  app: number;
+  /** Events written back to Google Calendar. */
+  google: number;
+  /** Already the same as the backup. */
+  unchanged: number;
+  /** Not started because the time ran out; restoring again carries on. */
+  remaining: number;
+  failed: { key: string; title: string; error: string }[];
+};

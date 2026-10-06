@@ -11,6 +11,11 @@ import type {
   Timer,
   TimerInput,
   TitleSuggestion,
+  BackupDetail,
+  BackupSummary,
+  Report,
+  RestoreSummary,
+  RestoreTarget,
 } from '../shared/types';
 
 export class ApiError extends Error {
@@ -157,4 +162,29 @@ export function discardTimer(): Promise<void> {
 /** Stops the timer and logs it; returns the new entry. */
 export function stopTimer(): Promise<TimeEntry> {
   return request('/api/timer/stop', { method: 'POST' });
+}
+
+const timeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/** REP-1/REP-2 for [from, to), split into days in this device's time zone (TE-7). */
+export function fetchReport(from: Date, to: Date): Promise<Report> {
+  return request(`/api/reports?${new URLSearchParams({ from: from.toISOString(), to: to.toISOString(), tz: timeZone() })}`);
+}
+
+/** REP-3: download link for the entries in [from, to) as CSV (same-origin, so the session cookie goes with it). */
+export function reportCsvUrl(from: Date, to: Date, name: string): string {
+  return `/api/reports?${new URLSearchParams({ from: from.toISOString(), to: to.toISOString(), tz: timeZone(), format: 'csv', name })}`;
+}
+
+export function fetchBackups(): Promise<BackupSummary[]> {
+  return request('/api/backups');
+}
+
+export function fetchBackup(id: string): Promise<BackupDetail> {
+  return request(`/api/backups/${encodeURIComponent(id)}`);
+}
+
+/** BAK-4: restore all of a backup, or the items in `keys`. */
+export function restoreBackup(id: string, target: RestoreTarget, keys?: string[]): Promise<RestoreSummary> {
+  return request(`/api/backups/${encodeURIComponent(id)}`, { method: 'POST', body: JSON.stringify({ target, keys }) });
 }

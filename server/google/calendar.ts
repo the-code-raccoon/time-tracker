@@ -68,6 +68,8 @@ export async function listAllEvents(
 
 /** Fields the app writes. `null` clears a field (e.g. colorId → calendar default). */
 export type EventWrite = {
+  /** 'confirmed' brings back an event deleted in Google (BAK-4). */
+  status?: 'confirmed';
   summary?: string;
   description?: string | null;
   colorId?: string | null;

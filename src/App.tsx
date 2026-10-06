@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ApiError, getSession, logout } from './api';
 import { AppShell } from './components/AppShell';
 import { useRoute } from './hooks/useRoute';
+import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { LoginPage } from './pages/LoginPage';
 
@@ -54,11 +55,17 @@ export function App() {
   if (auth === 'signed-out') return <LoginPage onLoggedIn={() => setAuth('signed-in')} />;
   return (
     <QueryClientProvider client={queryClient}>
-      {/* The calendar stays mounted (hidden) so its date and view survive a visit to Settings. */}
+      {/* The calendar stays mounted (hidden) so its date and view survive a visit to another page. */}
       <Box sx={{ display: route === 'calendar' ? 'block' : 'none' }}>
-        <AppShell onOpenSettings={() => navigate('settings')} onLogout={handleLogout} active={route === 'calendar'} />
+        <AppShell
+          onOpenSettings={() => navigate('settings')}
+          onOpenReports={() => navigate('reports')}
+          onLogout={handleLogout}
+          active={route === 'calendar'}
+        />
       </Box>
       {route === 'settings' && <SettingsPage onBack={() => navigate('calendar')} />}
+      {route === 'reports' && <ReportsPage onBack={() => navigate('calendar')} />}
     </QueryClientProvider>
   );
 }

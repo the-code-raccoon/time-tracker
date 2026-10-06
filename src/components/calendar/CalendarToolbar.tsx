@@ -1,4 +1,5 @@
 import Add from '@mui/icons-material/Add';
+import BarChart from '@mui/icons-material/BarChart';
 import ChevronLeft from '@mui/icons-material/ChevronLeft';
 import ChevronRight from '@mui/icons-material/ChevronRight';
 import Logout from '@mui/icons-material/Logout';
@@ -32,6 +33,7 @@ type Props = {
   /** The timer button (desktop only; phones get a floating one). */
   timer?: ReactNode;
   onOpenSettings: () => void;
+  onOpenReports: () => void;
   onSync: () => void;
   syncing: boolean;
   /** Entries waiting to be reconciled; shown as a badge on the sync button. */
@@ -39,7 +41,7 @@ type Props = {
   onLogout: () => void;
 };
 
-export function CalendarToolbar({ title, view, compact, onViewChange, onToday, onPrevious, onNext, onCreate, onSearch, timer, onOpenSettings, onSync, syncing, pendingConflicts, onLogout }: Props) {
+export function CalendarToolbar({ title, view, compact, onViewChange, onToday, onPrevious, onNext, onCreate, onSearch, timer, onOpenSettings, onOpenReports, onSync, syncing, pendingConflicts, onLogout }: Props) {
   const period = VIEW_LABELS[view].toLowerCase();
   const [moreAnchor, setMoreAnchor] = useState<HTMLElement | null>(null);
   const fromMore = (action: () => void) => () => {
@@ -117,6 +119,12 @@ export function CalendarToolbar({ title, view, compact, onViewChange, onToday, o
               </ListItemIcon>
               Search
             </MenuItem>
+            <MenuItem onClick={fromMore(onOpenReports)}>
+              <ListItemIcon>
+                <BarChart fontSize="small" />
+              </ListItemIcon>
+              Reports
+            </MenuItem>
             <MenuItem onClick={fromMore(onOpenSettings)}>
               <ListItemIcon>
                 <SettingsOutlined fontSize="small" />
@@ -133,6 +141,11 @@ export function CalendarToolbar({ title, view, compact, onViewChange, onToday, o
         </>
       ) : (
         <>
+          <Tooltip title="Reports">
+            <IconButton aria-label="Reports" onClick={onOpenReports}>
+              <BarChart />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Settings">
             <IconButton aria-label="Settings" onClick={onOpenSettings}>
               <SettingsOutlined />

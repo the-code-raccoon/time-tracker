@@ -39,12 +39,13 @@ type Panel = 'search' | 'go-to-date' | 'help' | 'timer' | 'reconcile';
 
 type Props = {
   onOpenSettings: () => void;
+  onOpenReports?: () => void;
   onLogout: () => void;
   /** False while another page is shown (the calendar stays mounted): keyboard shortcuts are off. */
   active?: boolean;
 };
 
-export function AppShell({ onOpenSettings, onLogout, active = true }: Props) {
+export function AppShell({ onOpenSettings, onOpenReports = () => {}, onLogout, active = true }: Props) {
   const theme = useTheme();
   const compact = useMediaQuery(theme.breakpoints.down('sm'));
   const [view, setView] = useState<ViewMode>(() => (compact ? 'day' : 'week'));
@@ -254,6 +255,7 @@ export function AppShell({ onOpenSettings, onLogout, active = true }: Props) {
           onSearch={() => setPanel('search')}
           timer={compact ? undefined : timerControl('toolbar')}
           onOpenSettings={onOpenSettings}
+          onOpenReports={onOpenReports}
           onSync={sync}
           syncing={syncMutation.isPending}
           pendingConflicts={pendingConflicts}

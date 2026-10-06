@@ -8,7 +8,9 @@ import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { BackupsSection } from '../components/settings/BackupsSection';
 import { CategoriesSection } from '../components/settings/CategoriesSection';
+import { InstallSection } from '../components/settings/InstallSection';
 import { GoogleCalendarSection, type OAuthResult } from '../components/settings/GoogleCalendarSection';
 
 /** Reads (and removes from the URL) the result of the Google OAuth redirect. */
@@ -43,6 +45,8 @@ export function SettingsPage({ onBack }: Props) {
       <Stack component="main" spacing={4} sx={{ maxWidth: 800, mx: 'auto', p: { xs: 1.5, sm: 3 } }}>
         <GoogleCalendarSection oauthResult={oauthResult} />
         <CategoriesSection />
+        <BackupsSection />
+        <InstallSection />
       </Stack>
     </Box>
   );

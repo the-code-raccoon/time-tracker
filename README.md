@@ -27,9 +27,13 @@ yarn dev
    - `http://localhost:5173/api/google/callback`
    - `https://<your-app>.vercel.app/api/google/callback`
 2. Set the `GOOGLE_*` variables and `TOKEN_ENCRYPTION_KEY` (see `.env.example`). In Vercel, `GOOGLE_REDIRECT_URI` is the Vercel URL.
-3. In the app: **Settings → Connect Google Calendar**, then **Import from Google Calendar**. After that, the ⟳ button in the toolbar pulls new changes.
+3. In the app: **Settings → Connect Google Calendar**, then **Import from Google Calendar**. After that, the ⟳ button in the toolbar syncs.
 
-Pulling never writes to Google Calendar. Entries changed in both places are set aside for reconciling (M3).
+The ⟳ button runs a two-way sync. Entries changed in both places are set aside for reconciling. Backups (Settings → Backups) are kept for 30 days and can be restored to the app, to Google Calendar, or both.
+
+## Install as an app
+
+Production builds are an installable PWA: Settings → Install app (Chrome/Edge/Android), or Share → Add to Home Screen on iOS. Press `?` in the calendar for keyboard shortcuts.
 
 ## Scripts
 

@@ -316,6 +316,19 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 - **Phones:** the timer is a floating button above Create; Search, Settings and Sign out are in the toolbar's ⋮ menu.
 - **Not done:** the optional custom view (`x` / `4`).
 
+### Implementation notes (M5)
+
+- **Reports (§5.6):** a Reports page (toolbar → chart icon, `/reports`) for a day, week, calendar month or custom range. `GET /api/reports?from&to&tz` returns minutes per category per local day of the device's time zone (so a day can be 23 or 25 hours), totals per category and the top 15 activities. Entries are cut at the range and at midnight. Overlapping entries each count in full, so a day can add up to more than 24 hours; the page says so.
+- **Chart (REP-2):** stacked columns in the categories' app colours and order. Uncategorised time is hatched, because its grey is close to Graphite (Work). Hovering or focusing a day shows its breakdown, and a Table toggle shows the same numbers. The seeded colours (Google's palette) are hard to tell apart for colour-blind readers (e.g. Tangerine and Basil); the legend, tooltip and tables carry every value, and app colours can be changed under Settings → Categories.
+- **CSV (REP-3):** `GET /api/reports?…&format=csv` downloads every entry overlapping the range (start, end, minutes, title, category, notes; local times). Cells starting with `=`, `+`, `-` or `@` are prefixed with `'` so spreadsheets don't run them.
+- **Backups screen (BAK-4):** Settings → Backups lists snapshots; opening one shows each entry beside its Google event and marks which copy differs from now. Restore all or selected items:
+  - *The app:* the entry goes back to the backup's app copy; the next sync sends it to Google.
+  - *Google Calendar:* the event goes back to the backup's Google copy (a deleted event is brought back, or re-created if Google no longer has it). The next sync brings it into the app, or flags a conflict if the app changed it since.
+  - *Both:* each side gets its own copy; an entry whose two copies were in sync when the backup was taken is marked in sync.
+  - A pull runs first for Google restores, only items that differ are written, and a backup of the current state is taken first. Google writes stop starting after ~40 s; restoring again carries on.
+- **Last-seen events:** deletions (pulled or pushed) now record the event as cancelled in `gcal_event`, so backups compare correctly; migration 0011 repaired existing rows.
+- **PWA:** web manifest, icons and a service worker (production builds only). The service worker caches the app shell (hashed assets cache-first, pages network-first) and never caches `/api`. Settings → Install app uses the browser's install prompt, or explains Add to Home Screen on iOS.
+
 ## 7. Non-functional requirements
 
 | ID    | Requirement                                                                                                                                        |
@@ -370,7 +383,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 4. ✅ **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
 5. ✅ **M3 — Push + conflict detection + Reconcile UI**, plus pre-sync and daily backups (BAK-1 – BAK-3).
 6. ✅ **M4 — Keyboard shortcuts**, Month view, timer, drag and drop (§5.2d).
-7. **M5 — Reporting**, CSV export, PWA install, Backups screen with restore (BAK-4).
+7. ✅ **M5 — Reporting**, CSV export, PWA install, Backups screen with restore (BAK-4).
 
 ## 11. Open questions
 
@@ -415,3 +428,4 @@ _None right now._
 | 2026-10-05 | Fixed NORM-8 on import: the most recent colour *that maps to a category* wins. Migrations 0007/0008 repaired 316 imported entries (with a backup) without pushing anything. |
 | 2026-10-05 | Push retries Google rate limits with backoff (a bulk CAT-4 recolour had hit them). Added CAT-13; migration 0009 put the 57 uncategorised default-colour entries in Self-care. |
 | 2026-10-05 | M4 done: keyboard shortcuts (§5.7) with a help dialog, Go to date and search; Month view; server-side timer (migration 0010); drag to move, resize and create in Day and Week views (§5.2d). The optional custom view (`x` / `4`) was left out. |
+| 2026-10-06 | M5 done: Reports page (REP-1 – REP-3), Backups screen with restore to the app, Google Calendar or both (BAK-4), installable PWA. Deletions now record a cancelled last-seen event (migration 0011). |
