@@ -137,7 +137,7 @@ The date and time controls in the entry editor copy Google Calendar's:
 | DT-3 | **Typed dates:** dates can be typed and are parsed on Enter or blur, then shown as `Oct 5, 2026`. Accepted forms include `oct 5`, `Oct 5`, `october 5`, `5 oct`, `10/5`, `oct 5 2027` and `10/5/2027`. **A missing year means the current year.** Input that can't be parsed goes back to the previous value. |
 | DT-4 | **Time picker:** clicking a time opens a list in 15-minute steps. In the end-time list each option also shows the resulting duration, e.g. `10:00am (30 mins)`, like Google Calendar. Times can also be typed, and any 5-minute value is accepted. They are shown as `9:30am`. |
 | DT-5 | **Typed times:** accepted forms include `9:30`, `930`, `9`, `9:30p`, `9:30 pm`, `9.30pm` and `21:30`. |
-| DT-6 | **am/pm inference:** a 12-hour time typed without am/pm becomes **the first matching time at or after the current time of day**. At 3:00pm, `9:30` → `9:30pm` and `4` → `4pm`. If both the am and the pm time have already passed today (at 11pm, `9:30`), it becomes pm. Times from 13:00 to 23:59, and `0:xx`, are taken as 24-hour times. |
+| DT-6 | **am/pm inference** for a 12-hour time typed without am/pm (Google Calendar's behaviour). **Start time:** the first matching time at or after the current time of day. At 3:00pm, `9:30` → `9:30pm` and `4` → `4pm`; if both the am and the pm time have already passed today (at 11pm, `9:30`), pm is used. **End time:** the first matching time at or after the *start time* when the end is on the same day as the start (start 9:30am, `10` → `10am`); on a later day it is am. Times from 13:00 to 23:59, and times written with a leading zero (`0:30`, `09:30`), are taken as 24-hour times. |
 | DT-7 | **End before start:** if the end date/time is earlier than the start, the end time and end date fields turn **red**, like Google Calendar (second screenshot), and Save is disabled until it's fixed. Nothing is auto-corrected. |
 | DT-8 | **Duration control:** a duration field (e.g. `30 min`, `1 h 30 min`) with quick presets (5, 10, 15, 30, 45 min, 1 h, 1 h 30 min, 2 h) that also accepts typing (`90`, `1:30`, `1h30`, `1.5h`). Setting it sets **end = start + duration**. Changing the end updates the duration shown. |
 | DT-9 | **Moving the start keeps the duration:** changing the start date or time moves the end by the same amount. Example: 9:30am–10:00am, change the start to 9:40am → 9:40am–10:10am. If the times are currently invalid (DT-7), the last valid duration is used. |
@@ -344,6 +344,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 - **Touching events the app didn't create** → yes, with 30-day backups (§5.5).
 - **Timer** → stored server-side.
 - **First import** → full history, from 2026-04-13.
+- **End-time am/pm** → follow Google Calendar: inferred from the start time (DT-6).
 
 - **Write canonical titles back to GCal** → no; existing events are never renamed (NORM-6).
 - **Lavender / Banana** → `tiering` is Leisure; Banana is Exercise, and gym/cardio/exercise are one activity (NORM-7).
@@ -351,7 +352,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 
 ### Still open
 
-1. **am/pm for the end time (DT-6):** should the end time be inferred from the current time like the start, or as the first match *after the start time*, which is what Google Calendar does? With a 9:30am start, typing `10` for the end would give 10am instead of 10pm. _Proposed: the start follows DT-6, and the end is the first match after the start._
+_None right now._
 
 ## Changelog
 
@@ -365,3 +366,4 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 | 2026-10-05 | M0 done: scaffold, MUI dark theme, password login, Vitest. The login rate limit is in memory until Postgres arrives in M1. happy-dom replaces jsdom (current jsdom needs Node ≥ 22.19). |
 | 2026-10-05 | M1 done: Postgres schema (migrations 0001–0002, RLS on), entries CRUD API, Day/Week/Schedule views, entry dialog with title autocomplete. Login rate limit now in Postgres. Drag interactions moved to M4. |
 | 2026-10-05 | Added Google Calendar-style date/time editing (§5.2b), entry context menu (§5.2c) and a Categories page (CAT-7 – CAT-12), as new milestone M1b. |
+| 2026-10-05 | DT-6: the end time's am/pm is inferred from the start time, as Google Calendar does. |
