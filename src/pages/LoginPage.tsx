@@ -8,24 +8,32 @@ import InputAdornment from '@mui/material/InputAdornment';
 import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError, login } from '../api';
 
-type Props = { onLoggedIn: () => void };
+/** /api/auth/callback puts a failed Google sign-in's reason in the URL. */
+const callbackError = () => new URLSearchParams(window.location.search).get('login_error');
 
-export function LoginPage({ onLoggedIn }: Props) {
+export function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(callbackError);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('login_error')) return;
+    url.searchParams.delete('login_error');
+    window.history.replaceState(window.history.state, '', url);
+  }, []);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      await login(password);
-      onLoggedIn();
+      // The second step: Google sign-in, which redirects back to /api/auth/callback.
+      window.location.assign(await login(password));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not reach the server');
       setSubmitting(false);
@@ -39,7 +47,7 @@ export function LoginPage({ onLoggedIn }: Props) {
           Time Tracker
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Enter your password to continue.
+          Enter your password, then sign in with Google.
         </Typography>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -72,7 +80,7 @@ export function LoginPage({ onLoggedIn }: Props) {
           }}
         />
         <Button type="submit" variant="contained" fullWidth size="large" disabled={submitting || !password} sx={{ mt: 3 }}>
-          {submitting ? 'Signing in…' : 'Sign in'}
+          {submitting ? 'Continuing to Google…' : 'Continue'}
         </Button>
       </Paper>
     </Box>

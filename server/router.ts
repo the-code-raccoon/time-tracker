@@ -1,3 +1,4 @@
+import * as authCallback from './routes/auth/callback.js';
 import * as login from './routes/auth/login.js';
 import * as logout from './routes/auth/logout.js';
 import * as session from './routes/auth/session.js';
@@ -34,6 +35,7 @@ const METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
  * The routes are served by a single Vercel function (api/index.ts) to stay under the Hobby plan's function limit.
  */
 const routes: Record<string, RouteModule> = {
+  'auth/callback': authCallback,
   'auth/login': login,
   'auth/logout': logout,
   'auth/session': session,

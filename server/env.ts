@@ -37,3 +37,17 @@ export function isGoogleConfigured(env: NodeJS.ProcessEnv = process.env): boolea
     return false;
   }
 }
+
+export type GoogleLoginEnv = { clientId: string; clientSecret: string; redirectUri: string; allowedEmail: string };
+
+/** Google sign-in, the second login step. Its callback is /api/auth/callback on the same origin as GOOGLE_REDIRECT_URI. */
+export function getGoogleLoginEnv(env: NodeJS.ProcessEnv = process.env): GoogleLoginEnv {
+  const missing = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI', 'ALLOWED_GOOGLE_EMAIL'].filter((name) => !env[name]);
+  if (missing.length > 0) throw new Error(`Google sign-in is not configured: set ${missing.join(', ')}`);
+  return {
+    clientId: env.GOOGLE_CLIENT_ID!,
+    clientSecret: env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: new URL('/api/auth/callback', env.GOOGLE_REDIRECT_URI).href,
+    allowedEmail: env.ALLOWED_GOOGLE_EMAIL!.trim().toLowerCase(),
+  };
+}

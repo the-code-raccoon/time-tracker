@@ -87,10 +87,11 @@ There is one user, the owner, who uses the app from:
 | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | AUTH-1 | The whole app is behind a single password. There are no user accounts.                                                                             |
 | AUTH-2 | The password is stored as a hash in an environment variable, never in the repo.                                                                    |
-| AUTH-3 | Logging in sets an HttpOnly, Secure, SameSite=Strict session cookie that lasts about 30 days, so the user can stay logged in on their own devices. |
+| AUTH-3 | Logging in sets an HttpOnly, Secure, SameSite=Strict session cookie that lasts 7 days, so the user can stay logged in on their own devices.        |
 | AUTH-4 | Every API route checks the session. Unauthenticated requests get a 401.                                                                            |
-| AUTH-5 | Failed logins are rate-limited (basic brute-force protection).                                                                                     |
+| AUTH-5 | Failed logins (wrong password or refused Google account) are rate-limited (basic brute-force protection).                                          |
 | AUTH-6 | Google OAuth is a separate, one-time connection. The refresh token is stored server-side, encrypted, and never sent to the browser.                |
+| AUTH-7 | Logging in takes two steps: the password, then Google sign-in with the one account in ALLOWED_GOOGLE_EMAIL. The password alone gets no session.    |
 
 ### 5.2 Time entries
 

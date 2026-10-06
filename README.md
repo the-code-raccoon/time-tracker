@@ -21,11 +21,15 @@ yarn dev
 
 `yarn dev` serves both the app and the `api/` functions at http://localhost:5173. It also listens on your LAN, so you can test on your phone.
 
+## Logging in
+
+Logging in takes two steps: the app password, then Google sign-in with the account in `ALLOWED_GOOGLE_EMAIL`. Any other Google account is refused, so the password alone doesn't get anyone in. Sessions last 7 days. Google sign-in needs the OAuth client and redirect URIs from [Google Calendar](#google-calendar) below, and because the callback is on `localhost`, logging in from another device on your LAN doesn't work in dev.
+
 ## Google Calendar
 
 1. In [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services → Credentials**, open the OAuth web client and add these **Authorized redirect URIs**:
-   - `http://localhost:5173/api/google/callback`
-   - `https://<your-app>.vercel.app/api/google/callback`
+   - `http://localhost:5173/api/google/callback` and `http://localhost:5173/api/auth/callback`
+   - `https://<your-app>.vercel.app/api/google/callback` and `https://<your-app>.vercel.app/api/auth/callback`
 2. Set the `GOOGLE_*` variables and `TOKEN_ENCRYPTION_KEY` (see `.env.example`). In Vercel, `GOOGLE_REDIRECT_URI` is the Vercel URL.
 3. In the app: **Settings → Connect Google Calendar**, then **Import from Google Calendar**. After that, the ⟳ button in the toolbar syncs.
 

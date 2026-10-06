@@ -49,8 +49,10 @@ export async function getSession(): Promise<boolean> {
   }
 }
 
-export async function login(password: string): Promise<void> {
-  await request('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) });
+/** The password step. Returns the Google sign-in URL to continue at; the session is set when Google redirects back. */
+export async function login(password: string): Promise<string> {
+  const { redirect } = await request<{ redirect: string }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) });
+  return redirect;
 }
 
 export async function logout(): Promise<void> {

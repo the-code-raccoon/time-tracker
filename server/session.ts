@@ -1,9 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const SESSION_COOKIE = 'tt_session';
-export const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-type SessionPayload = { v: 1; iat: number; exp: number };
+// v2: issued only after both the password and the Google sign-in. v1 (password only) sessions are no longer accepted.
+type SessionPayload = { v: 2; iat: number; exp: number };
 
 function sign(data: string, secret: string): string {
   return createHmac('sha256', secret).update(data).digest('base64url');
@@ -11,7 +12,7 @@ function sign(data: string, secret: string): string {
 
 export function createSessionToken(secret: string, now = Date.now()): string {
   const iat = Math.floor(now / 1000);
-  const payload: SessionPayload = { v: 1, iat, exp: iat + SESSION_TTL_SECONDS };
+  const payload: SessionPayload = { v: 2, iat, exp: iat + SESSION_TTL_SECONDS };
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
   return `${data}.${sign(data, secret)}`;
 }
@@ -26,7 +27,7 @@ export function verifySessionToken(token: string, secret: string, now = Date.now
 
   try {
     const payload = JSON.parse(Buffer.from(data, 'base64url').toString()) as SessionPayload;
-    return payload.v === 1 && typeof payload.exp === 'number' && payload.exp > Math.floor(now / 1000);
+    return payload.v === 2 && typeof payload.exp === 'number' && payload.exp > Math.floor(now / 1000);
   } catch {
     return false;
   }

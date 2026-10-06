@@ -1,9 +1,9 @@
 import { getDb } from '../../db.js';
-import { getAuthEnv } from '../../env.js';
+import { getAuthEnv, getGoogleLoginEnv } from '../../env.js';
+import { startGoogleLogin } from '../../google/login.js';
 import { clientIp, json } from '../../http.js';
 import { verifyPassword } from '../../password.js';
 import { createMemoryRateLimiter, createPostgresRateLimiter, type RateLimiter } from '../../rateLimit.js';
-import { createSessionToken, sessionCookie } from '../../session.js';
 
 const memoryLimiter = createMemoryRateLimiter();
 
@@ -12,8 +12,13 @@ export function getLimiter(): RateLimiter {
   return process.env.DATABASE_URL ? createPostgresRateLimiter(getDb()) : memoryLimiter;
 }
 
+/**
+ * POST /api/auth/login — the password step. It doesn't sign you in: it starts the Google sign-in (the second step)
+ * and returns the URL to continue at. /api/auth/callback issues the session.
+ */
 export async function POST(request: Request): Promise<Response> {
   const { passwordHash, sessionSecret } = getAuthEnv();
+  const googleEnv = getGoogleLoginEnv();
   const limiter = getLimiter();
   const ip = clientIp(request);
 
@@ -36,9 +41,7 @@ export async function POST(request: Request): Promise<Response> {
     return json({ error: 'Incorrect password' }, { status: 401 });
   }
 
-  await limiter.reset(ip);
-  return json(
-    { authenticated: true },
-    { headers: { 'set-cookie': sessionCookie(request, createSessionToken(sessionSecret)) } },
-  );
+  // Failures are cleared only once the Google step succeeds too (see callback.ts).
+  const { url, cookie } = startGoogleLogin(request, googleEnv, sessionSecret);
+  return json({ redirect: url }, { headers: { 'set-cookie': cookie } });
 }

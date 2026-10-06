@@ -1,4 +1,4 @@
-import type { GoogleEnv } from '../env.js';
+import type { GoogleEnv, GoogleLoginEnv } from '../env.js';
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
@@ -45,6 +45,18 @@ async function tokenRequest(body: Record<string, string>): Promise<TokenResponse
 export function exchangeCode(env: GoogleEnv, code: string): Promise<TokenResponse> {
   return tokenRequest({
     code,
+    client_id: env.clientId,
+    client_secret: env.clientSecret,
+    redirect_uri: env.redirectUri,
+    grant_type: 'authorization_code',
+  });
+}
+
+/** Code exchange for Google sign-in, with the PKCE verifier from the sign-in attempt. */
+export function exchangeLoginCode(env: GoogleLoginEnv, code: string, verifier: string): Promise<TokenResponse> {
+  return tokenRequest({
+    code,
+    code_verifier: verifier,
     client_id: env.clientId,
     client_secret: env.clientSecret,
     redirect_uri: env.redirectUri,

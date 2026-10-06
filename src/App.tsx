@@ -52,7 +52,7 @@ export function App() {
       </Box>
     );
   }
-  if (auth === 'signed-out') return <LoginPage onLoggedIn={() => setAuth('signed-in')} />;
+  if (auth === 'signed-out') return <LoginPage />;
   return (
     <QueryClientProvider client={queryClient}>
       {/* The calendar stays mounted (hidden) so its date and view survive a visit to another page. */}
