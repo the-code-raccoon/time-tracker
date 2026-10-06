@@ -101,8 +101,8 @@ There is one user, the owner, who uses the app from:
 | TE-1b | Times can be set to any 5-minute increment. Date and time entry follows §5.2b. |
 | TE-1c | Overlapping entries are allowed and shown side by side, like Google Calendar. Entries may cross midnight.                                                                                             |
 | TE-2  | Views: **Day**, **Week**, **Month** and **Schedule/Agenda**, laid out like Google Calendar.                                                                                                           |
-| TE-3  | Create an entry by click-dragging on the grid (desktop) or tapping and holding (touch).                                                                                                               |
-| TE-4  | Move or resize an entry by dragging.                                                                                                                                                                  |
+| TE-3  | Create an entry by dragging across empty grid space (see §5.2d). Clicking an empty slot still creates a 30-minute entry there. |
+| TE-4  | Move or resize an entry by dragging (see §5.2d). |
 | TE-5  | A start/stop timer for the activity happening now; stopping it creates an entry. The running timer is **stored server-side**, so a timer started on the phone can be seen and stopped on the desktop. |
 | TE-6  | Quick-add from a text input (e.g. `9-10:30 Deep work`). _(Nice to have)_                                                                                                                              |
 | TE-7  | All times are shown in `America/Toronto`, or the device timezone if that can be configured.                                                                                                           |
@@ -152,6 +152,22 @@ The date and time controls in the entry editor copy Google Calendar's:
 | CTX-3 | **Delete entry:** deletes immediately and shows a "Entry deleted · Undo" snackbar. |
 | CTX-4 | **Duplicate entry:** creates a copy with the same title, category, notes and times, then opens it in the editor so it can be moved. The copy isn't saved until you click Save, like Google Calendar. |
 | CTX-5 | The menu closes on Escape, on a click outside, or after an action. It stays inside the viewport near screen edges. |
+
+### 5.2d Drag and drop in the calendar (same as Google Calendar)
+
+Applies to the Day and Week time grids. The Schedule list has no dragging.
+
+| ID | Requirement |
+|---|---|
+| DRAG-1 | **Move:** dragging an entry moves it in **15-minute steps**, keeping its duration. While dragging, a preview block shows the new position with its time range (e.g. `9:55 – 10:25am`), and the original is dimmed. |
+| DRAG-2 | **Move across days:** in Week view, dragging sideways moves the entry to another day, keeping its time of day. |
+| DRAG-3 | **Resize:** dragging an entry's bottom edge changes its end in 15-minute steps (the cursor changes to a resize cursor over the edge). The end can't go earlier than 5 minutes after the start, so 5-minute entries can still be resized. |
+| DRAG-4 | **Create:** dragging down across empty grid space selects a range in 15-minute steps, then opens the editor with that start and end. |
+| DRAG-5 | **Saving:** dropping saves straight away (no editor) and shows an "Entry moved" / "Entry resized" snackbar with **Undo**. If the save fails, the entry goes back and the error is shown. |
+| DRAG-6 | **Click vs. drag:** a press that moves less than 4 px is a click, so it opens the editor as now. **Escape** while dragging cancels and puts the entry back. |
+| DRAG-7 | **Auto-scroll:** dragging near the top or bottom of the grid scrolls it, so an entry can be moved to a time that's off-screen. |
+| DRAG-8 | **Touch:** long-press, then drag without lifting, to move or resize. Long-press and lift without moving opens the context menu (CTX-1). A normal swipe scrolls the grid. |
+| DRAG-9 | Entries that cross midnight move as one block: moving 11pm–1am down 30 minutes gives 11:30pm–1:30am, shown on both days. |
 
 ### 5.3 Google Calendar sync (manual, two-way)
 
@@ -331,7 +347,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 3. ✅ **M1b — Editing:** Google Calendar-style date/time controls (§5.2b), entry context menu (§5.2c), Categories page (CAT-7 – CAT-12).
 4. **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
 5. **M3 — Push + conflict detection + Reconcile UI.**
-6. **M4 — Keyboard shortcuts**, Month view, timer, drag to create/move/resize (TE-3, TE-4; M1 has click-to-create and edit via dialog).
+6. **M4 — Keyboard shortcuts**, Month view, timer, drag and drop (§5.2d).
 7. **M5 — Reporting**, CSV export, PWA install.
 
 ## 11. Open questions
@@ -352,7 +368,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 
 ### Still open
 
-_None right now._
+1. **Drag steps (DRAG-1):** should a dragged entry move in 15-minute steps *from its own time* (9:40 → 9:55 → 10:10), or snap onto the quarter-hour grid (9:40 → 9:45 → 10:00)? _Proposed: 15-minute steps from its own time, so the 5-minute precision of existing entries is kept._
 
 ## Changelog
 
@@ -369,3 +385,4 @@ _None right now._
 | 2026-10-05 | DT-6: the end time's am/pm is inferred from the start time, as Google Calendar does. |
 | 2026-10-05 | M1b done: Google Calendar-style date/time editor, right-click/long-press entry menu with undo, Categories page. Added the `backups` table (migration 0003); category delete/merge and move-by-title take a backup first. |
 | 2026-10-05 | DT-2: the date picker's calendar marks today. |
+| 2026-10-05 | Added drag and drop in the calendar (§5.2d): move, move across days, resize and drag-to-create in 15-minute steps, with undo. |
