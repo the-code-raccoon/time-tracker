@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GoogleEnv } from '../env.js';
-import type { GoogleEvent } from '../google/calendar.js';
+import { timing, type GoogleEvent } from '../google/calendar.js';
 import { restoreEntry } from '../repositories/entries.js';
 import { saveAccount } from '../repositories/google.js';
 import { fakeGoogle, type FakeGoogle } from '../testing/fakeGoogle.js';
@@ -42,6 +42,7 @@ beforeEach(async () => {
   await pull(db, ENV);
 });
 afterEach(async () => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   await db.close();
 });
@@ -157,6 +158,33 @@ describe('push (SYNC-3)', () => {
     expect(summary.failed).toHaveLength(1);
     expect(summary.failed[0].error).toBe('Injected 500');
     expect((await push(db, ENV)).updated).toBe(1); // retried next time
+  });
+
+  it('retries rate-limited writes with backoff (429 and 403 rateLimitExceeded)', async () => {
+    const waits: number[] = [];
+    vi.spyOn(timing, 'sleep').mockImplementation(async (ms) => void waits.push(ms));
+    await db.query("update time_entries set starts_at = starts_at + interval '5 minutes' where gcal_event_id = 'work'");
+    google.failNext('PATCH', 403, 'rateLimitExceeded');
+    google.failNext('PATCH', 429);
+    expect(await push(db, ENV)).toMatchObject({ updated: 1, failed: [] });
+    expect(waits).toHaveLength(2);
+    expect(waits[1]).toBeGreaterThan(waits[0] * 1.2);
+  });
+
+  it('does not retry a 403 that is not a rate limit', async () => {
+    const sleep = vi.spyOn(timing, 'sleep').mockResolvedValue();
+    await db.query("update time_entries set starts_at = starts_at + interval '5 minutes' where gcal_event_id = 'work'");
+    google.failNext('PATCH', 403, 'forbidden');
+    expect((await push(db, ENV)).failed).toHaveLength(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it('gives up after repeated rate limits and leaves the change for the next sync', async () => {
+    vi.spyOn(timing, 'sleep').mockResolvedValue();
+    await db.query("update time_entries set starts_at = starts_at + interval '5 minutes' where gcal_event_id = 'work'");
+    for (let i = 0; i < 6; i++) google.failNext('PATCH', 429);
+    expect((await push(db, ENV)).failed).toHaveLength(1);
+    expect((await push(db, ENV)).updated).toBe(1);
   });
 
   it('stops starting requests when the time budget runs out', async () => {

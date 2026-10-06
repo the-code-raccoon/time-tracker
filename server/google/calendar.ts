@@ -85,20 +85,46 @@ export class EventChangedError extends Error {
   }
 }
 
+/** Waits between retries; replaceable in tests. */
+export const timing = { sleep: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)) };
+
+const MAX_ATTEMPTS = 6;
+const RATE_LIMIT_REASONS = new Set(['rateLimitExceeded', 'userRateLimitExceeded']);
+
+type ErrorBody = { error?: { message?: string; errors?: { reason?: string }[] } };
+
+/** Google signals "slow down" with 429, or 403 with a rate-limit reason. */
+function isRateLimited(status: number, body: ErrorBody): boolean {
+  return status === 429 || (status === 403 && (body.error?.errors ?? []).some((e) => RATE_LIMIT_REASONS.has(e.reason ?? '')));
+}
+
+/** Retry-After if given, otherwise exponential backoff with jitter: ~1s, 2s, 4s, 8s, 16s. */
+function retryDelay(response: Response, attempt: number): number {
+  const retryAfter = Number(response.headers.get('retry-after'));
+  if (retryAfter > 0) return retryAfter * 1000;
+  return 1000 * 2 ** attempt * (0.75 + Math.random() * 0.5);
+}
+
 async function eventRequest(accessToken: string, calendarId: string, path: string, init: RequestInit & { etag?: string | null } = {}) {
   const { etag, ...rest } = init;
   const headers = new Headers(rest.headers);
   headers.set('authorization', `Bearer ${accessToken}`);
   if (rest.body) headers.set('content-type', 'application/json');
   if (etag) headers.set('if-match', etag);
-  const response = await fetch(`${API}/calendars/${encodeURIComponent(calendarId)}/events${path}`, { ...rest, headers });
-  if (response.status === 412) throw new EventChangedError(false);
-  if (response.status === 404 || response.status === 410) throw new EventChangedError(true);
-  if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
+
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(`${API}/calendars/${encodeURIComponent(calendarId)}/events${path}`, { ...rest, headers });
+    if (response.status === 412) throw new EventChangedError(false);
+    if (response.status === 404 || response.status === 410) throw new EventChangedError(true);
+    if (response.ok) return response;
+
+    const body = (await response.json().catch(() => ({}))) as ErrorBody;
+    if (isRateLimited(response.status, body) && attempt < MAX_ATTEMPTS - 1) {
+      await timing.sleep(retryDelay(response, attempt));
+      continue;
+    }
     throw new GoogleApiError(response.status, body.error?.message ?? `Google Calendar request failed (${response.status})`);
   }
-  return response;
 }
 
 export async function insertEvent(accessToken: string, calendarId: string, event: EventWrite): Promise<GoogleEvent> {

@@ -139,7 +139,9 @@ export type PushOptions = { budgetMs?: number; concurrency?: number };
  * Patches and deletes use the last-seen etag; if Google changed the event meanwhile, the entry becomes a conflict.
  * Stops starting new requests after `budgetMs` so it fits in a serverless request; the rest go next time.
  */
-export async function push(db: Db, env: GoogleEnv, { budgetMs = 40_000, concurrency = 6 }: PushOptions = {}): Promise<PushSummary> {
+// Google Calendar starts rate-limiting writes after a short burst; a few at a time plus backoff keeps bulk pushes
+// (e.g. a CAT-4 recolour of a whole category) going.
+export async function push(db: Db, env: GoogleEnv, { budgetMs = 40_000, concurrency = 3 }: PushOptions = {}): Promise<PushSummary> {
   const accessToken = await getAccessToken(db, env);
   if (!accessToken) throw new NotConnectedError('Google Calendar is not connected');
   const deadline = Date.now() + budgetMs;

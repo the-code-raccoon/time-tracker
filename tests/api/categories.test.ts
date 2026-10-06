@@ -66,6 +66,32 @@ describe('PATCH /api/categories/:id', () => {
     expect(new Date(row.updated_at).getTime()).toBeGreaterThan(new Date(created.updatedAt).getTime());
   });
 
+  it('adopts uncategorised imported entries with the new colour, without making them pushable (CAT-13)', async () => {
+    await db.exec(`
+      insert into time_entries (title, starts_at, ends_at, gcal_event_id, gcal_color_id) values
+        ('incline walk', '2026-10-01T10:00:00Z', '2026-10-01T10:30:00Z', 'g1', null),
+        ('dietician',    '2026-10-02T10:00:00Z', '2026-10-02T10:30:00Z', 'g2', null),
+        ('mystery',      '2026-10-03T10:00:00Z', '2026-10-03T10:30:00Z', 'g3', '2'),
+        ('app only',     '2026-10-04T10:00:00Z', '2026-10-04T10:30:00Z', null, null);
+      update time_entries set last_synced_hash = app_hash, last_synced_category_id = category_id where gcal_event_id is not null;
+    `);
+    const selfCare = await byName('Self-care / logistics');
+    await patchCategory(apiRequest(`/api/categories/${selfCare.id}`, { method: 'PATCH', json: { gcalColorId: '2' } }));
+    await patchCategory(apiRequest(`/api/categories/${selfCare.id}`, { method: 'PATCH', json: { gcalColorId: null } }));
+
+    const rows = await db.query<{ title: string; category: string | null; in_sync: boolean }>(
+      `select e.title, c.name as category, e.app_hash is not distinct from e.last_synced_hash as in_sync
+         from time_entries e left join categories c on c.id = e.category_id order by e.starts_at`,
+    );
+    expect(rows).toEqual([
+      { title: 'incline walk', category: 'Self-care / logistics', in_sync: true },
+      { title: 'dietician', category: 'Self-care / logistics', in_sync: true },
+      // joined while Self-care was Sage, then forced to recolour when it went back to the default (CAT-4)
+      { title: 'mystery', category: 'Self-care / logistics', in_sync: false },
+      { title: 'app only', category: null, in_sync: false },
+    ]);
+  });
+
   it('returns 404 for an unknown category', async () => {
     const response = await patchCategory(apiRequest('/api/categories/00000000-0000-4000-8000-000000000000', { method: 'PATCH', json: { name: 'x' } }));
     expect(response.status).toBe(404);

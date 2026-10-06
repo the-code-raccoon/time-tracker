@@ -41,6 +41,29 @@ export async function getCategory(db: Db, id: string): Promise<Category | null> 
   return row ? toCategory(row) : null;
 }
 
+/**
+ * CAT-13: uncategorised imported entries whose Google colour is now this category's colour join the category.
+ * Their events already have that colour, so they're recorded as in sync (nothing to push). Returns how many joined.
+ */
+export async function adoptUncategorised(db: Db, categoryId: string, gcalColorId: string | null): Promise<number> {
+  const adopted = await db.query<{ id: string }>(
+    `update time_entries set category_id = $1, updated_at = now()
+      where category_id is null and deleted_at is null and gcal_event_id is not null
+        and gcal_color_id is not distinct from $2
+        and last_synced_hash is not distinct from app_hash
+     returning id`,
+    [categoryId, gcalColorId],
+  );
+  if (adopted.length > 0) {
+    await db.query(
+      `update time_entries set last_synced_hash = app_hash, last_synced_category_id = category_id
+        where id in (select (jsonb_array_elements_text($1::text::jsonb))::uuid)`,
+      [JSON.stringify(adopted.map((row) => row.id))],
+    );
+  }
+  return adopted.length;
+}
+
 export async function createCategory(db: Db, input: CategoryInput): Promise<Category> {
   const [{ id }] = await db.query<{ id: string }>(
     `insert into categories (name, app_color, gcal_color_id, sort_order)
@@ -48,6 +71,7 @@ export async function createCategory(db: Db, input: CategoryInput): Promise<Cate
      returning id`,
     [input.name, input.appColor, input.gcalColorId],
   );
+  await adoptUncategorised(db, id, input.gcalColorId);
   return (await getCategory(db, id))!;
 }
 
@@ -71,6 +95,7 @@ export async function updateCategory(db: Db, id: string, patch: Partial<Category
       'update time_entries set updated_at = now(), last_synced_hash = null where category_id = $1 and deleted_at is null',
       [id],
     );
+    await adoptUncategorised(db, id, patch.gcalColorId);
   }
   return getCategory(db, id);
 }

@@ -10,8 +10,8 @@ export type FakeGoogle = {
   set(event: GoogleEvent): void;
   cancel(id: string): void;
   expireSyncTokens(): void;
-  /** Make the next request matching `pathPart` fail with `status`. */
-  failNext(method: string, status: number): void;
+  /** Make the next request with this method fail with `status` (and, for 403, an optional error reason). */
+  failNext(method: string, status: number, reason?: string): void;
   requests(method: string): { url: URL; body: Record<string, unknown> | null }[];
 };
 
@@ -27,7 +27,7 @@ export function fakeGoogle({ pageSize = 2500 } = {}): FakeGoogle {
   const changedAt = new Map<string, number>();
   const events = new Map<string, GoogleEvent>();
   const calls: FakeGoogle['calls'] = [];
-  const failures: { method: string; status: number }[] = [];
+  const failures: { method: string; status: number; reason?: string }[] = [];
 
   const store = (event: GoogleEvent) => {
     const stored = { status: 'confirmed' as const, ...event, etag: `"${event.id}-${++version}"` };
@@ -47,8 +47,8 @@ export function fakeGoogle({ pageSize = 2500 } = {}): FakeGoogle {
     expireSyncTokens() {
       minValidVersion = version + 1;
     },
-    failNext(method, status) {
-      failures.push({ method, status });
+    failNext(method, status, reason) {
+      failures.push({ method, status, reason });
     },
     requests(method) {
       return calls
@@ -71,8 +71,8 @@ export function fakeGoogle({ pageSize = 2500 } = {}): FakeGoogle {
 
       const failure = failures.findIndex((f) => f.method === method);
       if (failure !== -1) {
-        const [{ status }] = failures.splice(failure, 1);
-        return Response.json({ error: { message: `Injected ${status}` } }, { status });
+        const [{ status, reason }] = failures.splice(failure, 1);
+        return Response.json({ error: { message: `Injected ${status}`, errors: reason ? [{ reason }] : [] } }, { status });
       }
 
       const match = url.pathname.match(/\/events(?:\/([^/]+))?$/);
