@@ -8,7 +8,7 @@ import LinearProgress from '@mui/material/LinearProgress';
 import Snackbar from '@mui/material/Snackbar';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
-import { addMinutes, startOfDay } from 'date-fns';
+import { addDays, addMinutes, format, startOfDay } from 'date-fns';
 import { useMemo, useRef, useState } from 'react';
 import type { Category, TimeEntry, Timer } from '../../shared/types';
 import { ApiError } from '../api';
@@ -178,6 +178,22 @@ export function AppShell({ onOpenSettings, onOpenReports = () => {}, onLogout, a
     });
   }
 
+  /** CTX-6: saves a copy one day later at the same local time, with undo. */
+  async function duplicateToNextDay(entry: TimeEntry) {
+    const start = addDays(new Date(entry.start), 1);
+    const copy = await mutations.create.mutateAsync({
+      title: entry.title,
+      start: start.toISOString(),
+      end: addDays(new Date(entry.end), 1).toISOString(),
+      categoryId: entry.categoryId,
+      notes: entry.notes,
+    });
+    notify({
+      text: `Duplicated to ${format(start, 'EEE, MMM d')}`,
+      undo: () => mutations.remove.mutateAsync(copy.id).catch(report),
+    });
+  }
+
   function goTo(day: Date, nextView: ViewMode = view) {
     setDate(day);
     setView(nextView);
@@ -322,6 +338,7 @@ export function AppShell({ onOpenSettings, onOpenReports = () => {}, onLogout, a
         onClose={() => setMenu(null)}
         onChangeCategory={(entry, categoryId) => void changeCategory(entry, categoryId).catch(report)}
         onDuplicate={duplicate}
+        onDuplicateNextDay={(entry) => void duplicateToNextDay(entry).catch(report)}
         onDelete={(entry) => void deleteWithUndo(entry).catch(report)}
       />
 

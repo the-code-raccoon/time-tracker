@@ -1,6 +1,7 @@
 import Check from '@mui/icons-material/Check';
 import ContentCopy from '@mui/icons-material/ContentCopy';
 import DeleteOutline from '@mui/icons-material/DeleteOutlined';
+import EventRepeat from '@mui/icons-material/EventRepeat';
 import Box from '@mui/material/Box';
 import ButtonBase from '@mui/material/ButtonBase';
 import Divider from '@mui/material/Divider';
@@ -20,11 +21,12 @@ type Props = {
   onClose: () => void;
   onChangeCategory: (entry: TimeEntry, categoryId: string | null) => void;
   onDuplicate: (entry: TimeEntry) => void;
+  onDuplicateNextDay: (entry: TimeEntry) => void;
   onDelete: (entry: TimeEntry) => void;
 };
 
 /** §5.2c: right-click / long-press menu for an entry. */
-export function EntryContextMenu({ state, categories, onClose, onChangeCategory, onDuplicate, onDelete }: Props) {
+export function EntryContextMenu({ state, categories, onClose, onChangeCategory, onDuplicate, onDuplicateNextDay, onDelete }: Props) {
   const entry = state?.entry;
   const act = (action: (entry: TimeEntry) => void) => () => {
     if (entry) action(entry);
@@ -77,6 +79,12 @@ export function EntryContextMenu({ state, categories, onClose, onChangeCategory,
           <ContentCopy fontSize="small" />
         </ListItemIcon>
         <ListItemText>Duplicate</ListItemText>
+      </MenuItem>
+      <MenuItem onClick={act(onDuplicateNextDay)}>
+        <ListItemIcon>
+          <EventRepeat fontSize="small" />
+        </ListItemIcon>
+        <ListItemText>Duplicate to next day</ListItemText>
       </MenuItem>
       <MenuItem onClick={act(onDelete)}>
         <ListItemIcon>

@@ -173,6 +173,35 @@ describe('AppShell', () => {
       });
     });
 
+    it('duplicates to the next day at the same time, with undo (CTX-6)', async () => {
+      const user = userEvent.setup();
+      const copy = entry({ title: 'chill' });
+      const fetchMock = mockApi(
+        {
+          'POST /api/entries': (init) => ({ status: 201, body: Object.assign(copy, JSON.parse(String(init?.body))) }),
+          'DELETE /api/entries/*': () => ({ status: 204 }),
+        },
+        [existing],
+      );
+      renderWithProviders(<AppShell onOpenSettings={() => {}} onLogout={() => {}} />);
+
+      fireEvent.contextMenu(await screen.findByRole('button', { name: /^chill,/ }));
+      await user.click(screen.getByRole('menuitem', { name: 'Duplicate to next day' }));
+      await waitFor(() => expect(requestsTo(fetchMock, 'POST', '/api/entries')).toHaveLength(1));
+      expect(JSON.parse(String(requestsTo(fetchMock, 'POST', '/api/entries')[0][1]?.body))).toEqual({
+        title: 'chill',
+        start: new Date('2026-10-08T09:00:00').toISOString(),
+        end: new Date('2026-10-08T17:00:00').toISOString(),
+        categoryId: CATEGORIES[1].id,
+        notes: null,
+      });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(await screen.findByText('Duplicated to Thu, Oct 8')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Undo' }));
+      await waitFor(() => expect(requestsTo(fetchMock, 'DELETE', `/api/entries/${copy.id}`)).toHaveLength(1));
+    });
+
     it('opens on long-press on touch screens (CTX-1)', async () => {
       vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
       vi.setSystemTime(NOW);

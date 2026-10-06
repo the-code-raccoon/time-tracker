@@ -154,6 +154,7 @@ The date and time controls in the entry editor copy Google Calendar's:
 | CTX-3 | **Delete entry:** deletes immediately and shows a "Entry deleted · Undo" snackbar. |
 | CTX-4 | **Duplicate entry:** creates a copy with the same title, category, notes and times, then opens it in the editor so it can be moved. The copy isn't saved until you click Save, like Google Calendar. |
 | CTX-5 | The menu closes on Escape, on a click outside, or after an action. It stays inside the viewport near screen edges. |
+| CTX-6 | **Duplicate to next day:** saves a copy (title, category, notes) one day later at the same local time, straight away without opening the editor, and shows a "Duplicated to Thu, Oct 8 · Undo" snackbar. Across a DST change it keeps the wall-clock time. |
 
 ### 5.2d Drag and drop in the calendar (same as Google Calendar)
 
@@ -431,3 +432,4 @@ _None right now._
 | 2026-10-05 | M4 done: keyboard shortcuts (§5.7) with a help dialog, Go to date and search; Month view; server-side timer (migration 0010); drag to move, resize and create in Day and Week views (§5.2d). The optional custom view (`x` / `4`) was left out. |
 | 2026-10-06 | M5 done: Reports page (REP-1 – REP-3), Backups screen with restore to the app, Google Calendar or both (BAK-4), installable PWA. Deletions now record a cancelled last-seen event (migration 0011). |
 | 2026-10-06 | Added TE-8 (the new-entry editor shows the last entry, with a button to start from it; `GET /api/entries?before=`). |
+| 2026-10-06 | Added CTX-6 (Duplicate to next day in the entry menu). |
