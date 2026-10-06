@@ -1,16 +1,23 @@
+import { getDb } from '../../server/db.js';
 import { getAuthEnv } from '../../server/env.js';
 import { clientIp, json } from '../../server/http.js';
 import { verifyPassword } from '../../server/password.js';
-import { createRateLimiter } from '../../server/rateLimit.js';
+import { createMemoryRateLimiter, createPostgresRateLimiter, type RateLimiter } from '../../server/rateLimit.js';
 import { createSessionToken, sessionCookie } from '../../server/session.js';
 
-export const limiter = createRateLimiter();
+const memoryLimiter = createMemoryRateLimiter();
+
+/** Postgres-backed when a database is configured (holds across instances), otherwise in memory. */
+export function getLimiter(): RateLimiter {
+  return process.env.DATABASE_URL ? createPostgresRateLimiter(getDb()) : memoryLimiter;
+}
 
 export async function POST(request: Request): Promise<Response> {
   const { passwordHash, sessionSecret } = getAuthEnv();
+  const limiter = getLimiter();
   const ip = clientIp(request);
 
-  if (limiter.isBlocked(ip)) {
+  if (await limiter.isBlocked(ip)) {
     return json({ error: 'Too many attempts. Try again later.' }, { status: 429 });
   }
 
@@ -25,11 +32,11 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (!(await verifyPassword(password, passwordHash))) {
-    limiter.recordFailure(ip);
+    await limiter.recordFailure(ip);
     return json({ error: 'Incorrect password' }, { status: 401 });
   }
 
-  limiter.reset(ip);
+  await limiter.reset(ip);
   return json(
     { authenticated: true },
     { headers: { 'set-cookie': sessionCookie(request, createSessionToken(sessionSecret)) } },

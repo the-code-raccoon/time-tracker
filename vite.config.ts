@@ -16,9 +16,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), apiDevServer()],
     server: { host: true },
     test: {
+      env: { TZ: 'America/Toronto' },
       coverage: {
-        include: ['src/**', 'api/**', 'server/**'],
-        exclude: ['**/*.test.*', 'src/test/**', 'src/main.tsx'],
+        include: ['src/**', 'api/**', 'server/**', 'shared/**'],
+        exclude: ['**/*.test.*', 'src/test/**', 'server/testing/**', 'src/main.tsx'],
       },
       projects: [
         {
@@ -26,7 +27,7 @@ export default defineConfig(({ mode }) => {
           test: {
             name: 'server',
             environment: 'node',
-            include: ['api/**/*.test.ts', 'server/**/*.test.ts'],
+            include: ['tests/**/*.test.ts', 'server/**/*.test.ts', 'shared/**/*.test.ts', 'vite-plugins/**/*.test.ts'],
           },
         },
         {

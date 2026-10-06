@@ -1,22 +1,9 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { App } from './App';
+import { mockApi } from './test/mockApi';
 import { renderWithTheme } from './test/render';
-
-type Route = (init?: RequestInit) => { status: number; body?: unknown };
-
-function mockApi(routes: Record<string, Route>) {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const key = `${init?.method ?? 'GET'} ${input.toString()}`;
-    const route = routes[key];
-    if (!route) throw new Error(`Unexpected request: ${key}`);
-    const { status, body = {} } = route(init);
-    return new Response(JSON.stringify(body), { status });
-  });
-  vi.stubGlobal('fetch', fetchMock);
-  return fetchMock;
-}
 
 describe('App', () => {
   it('shows the login page when there is no session', async () => {
@@ -25,8 +12,8 @@ describe('App', () => {
     expect(await screen.findByLabelText(/^password/i)).toBeInTheDocument();
   });
 
-  it('shows the app when already signed in', async () => {
-    mockApi({ 'GET /api/auth/session': () => ({ status: 200, body: { authenticated: true } }) });
+  it('shows the calendar when already signed in', async () => {
+    mockApi();
     renderWithTheme(<App />);
     expect(await screen.findByRole('button', { name: 'Sign out' })).toBeInTheDocument();
   });
@@ -62,5 +49,11 @@ describe('App', () => {
     await user.type(await screen.findByLabelText(/^password/i), 'wrong');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Incorrect password');
+  });
+
+  it('returns to the login page when the session expires', async () => {
+    mockApi({ 'GET /api/entries': () => ({ status: 401, body: { error: 'Unauthorized' } }) });
+    renderWithTheme(<App />);
+    expect(await screen.findByLabelText(/^password/i)).toBeInTheDocument();
   });
 });

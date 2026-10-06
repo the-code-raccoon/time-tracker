@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import path from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
@@ -35,13 +35,27 @@ async function sendWebResponse(res: ServerResponse, response: Response): Promise
   res.end(Buffer.from(await response.arrayBuffer()));
 }
 
+/** Resolves a URL path to a function file the way Vercel does: `x.ts`, `x/index.ts`, then a `[param].ts` sibling. */
+export function resolveRoute(root: string, pathname: string): string | undefined {
+  const apiRoot = path.join(root, 'api');
+  const base = path.join(root, pathname);
+  if (base !== apiRoot && !base.startsWith(apiRoot + path.sep)) return undefined;
+
+  for (const candidate of [`${base}.ts`, path.join(base, 'index.ts')]) {
+    if (existsSync(candidate)) return candidate;
+  }
+  const parent = path.dirname(base);
+  if (!existsSync(parent) || !parent.startsWith(apiRoot)) return undefined;
+  const dynamic = readdirSync(parent).find((file) => /^\[[^\]]+\]\.ts$/.test(file));
+  return dynamic ? path.join(parent, dynamic) : undefined;
+}
+
 async function handle(server: ViteDevServer, req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const { pathname } = new URL(req.url ?? '/', 'http://localhost');
   if (!pathname.startsWith('/api/')) return false;
 
-  const apiRoot = path.join(server.config.root, 'api');
-  const file = path.join(server.config.root, `${pathname}.ts`);
-  if (!file.startsWith(apiRoot + path.sep) || !existsSync(file)) {
+  const file = resolveRoute(server.config.root, pathname.replace(/\/+$/, ''));
+  if (!file) {
     await sendWebResponse(res, Response.json({ error: 'Not found' }, { status: 404 }));
     return true;
   }

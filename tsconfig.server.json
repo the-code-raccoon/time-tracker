@@ -20,5 +20,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["api", "server", "scripts"]
+  "include": ["api", "server", "scripts", "shared", "tests"]
 }

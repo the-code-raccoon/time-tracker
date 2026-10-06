@@ -261,7 +261,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 | Language        | TypeScript                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Frontend        | React + Vite (SPA)                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | UI              | [MUI](https://mui.com/) (Material, close to Google Calendar's look), dark theme                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Calendar grid   | To decide: build on MUI, or a library such as FullCalendar or react-big-calendar styled with the MUI theme                                                                                                                                                                                                                                                                                                                                                                                 |
+| Calendar grid   | Custom grid built with MUI components (overlap layout in `src/lib/layout.ts`), so it matches Google Calendar's look and handles overlaps, cross-midnight entries and 5-minute entries the way the existing data needs. |
 | Backend         | Vercel Serverless Functions (`/api/*`) in TypeScript                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Google API      | `googleapis`, server-side OAuth 2.0 with a **web** client (`credentials.json` is already set up as a web client)                                                                                                                                                                                                                                                                                                                                                                           |
 | Database        | **PostgreSQL** hosted on Supabase (free tier), project `time-tracker` (`zunydbnypttnrcveflmi`, us-east-1). The app talks to it as plain Postgres using a standard driver (`postgres` / `pg`) and `DATABASE_URL`, through Supabase's transaction pooler (port 6543), which is meant for serverless. It does **not** use the Supabase JS client, auth or REST APIs, so the database is easy to move to any other Postgres host. Schema changes are plain SQL migrations in `db/migrations/`. |
@@ -292,10 +292,10 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 ## 10. Milestones
 
 1. ✅ **M0 — Scaffold:** Vite + React + TS + MUI dark theme, Yarn, Vitest suite, Vercel config, password login.
-2. **M1 — Entries:** CRUD with database persistence; Day, Week and Schedule views; responsive layout.
+2. ✅ **M1 — Entries:** CRUD with database persistence; Day, Week and Schedule views; responsive layout.
 3. **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
 4. **M3 — Push + conflict detection + Reconcile UI.**
-5. **M4 — Keyboard shortcuts**, Month view, timer.
+5. **M4 — Keyboard shortcuts**, Month view, timer, drag to create/move/resize (TE-3, TE-4; M1 has click-to-create and edit via dialog).
 6. **M5 — Reporting**, CSV export, PWA install.
 
 ## 11. Open questions
@@ -327,3 +327,4 @@ _None right now._
 | 2026-10-05 | Resolved the last open questions: no renaming of existing GCal events, exercise aliases → Banana, `tiering` → Leisure, most recent colour wins. |
 | 2026-10-05 | Added Vitest test-suite requirement. |
 | 2026-10-05 | M0 done: scaffold, MUI dark theme, password login, Vitest. The login rate limit is in memory until Postgres arrives in M1. happy-dom replaces jsdom (current jsdom needs Node ≥ 22.19). |
+| 2026-10-05 | M1 done: Postgres schema (migrations 0001–0002, RLS on), entries CRUD API, Day/Week/Schedule views, entry dialog with title autocomplete. Login rate limit now in Postgres. Drag interactions moved to M4. |

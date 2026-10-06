@@ -1,14 +1,33 @@
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { getSession, logout } from './api';
+import { ApiError, getSession, logout } from './api';
 import { AppShell } from './components/AppShell';
 import { LoginPage } from './pages/LoginPage';
 
 type AuthState = 'checking' | 'signed-out' | 'signed-in';
 
+const isUnauthorized = (error: unknown) => error instanceof ApiError && error.status === 401;
+
 export function App() {
   const [auth, setAuth] = useState<AuthState>('checking');
+  const [queryClient] = useState(() => {
+    // An expired session on any request sends you back to the login page.
+    const onError = (error: unknown) => {
+      if (isUnauthorized(error)) setAuth('signed-out');
+    };
+    return new QueryClient({
+      queryCache: new QueryCache({ onError }),
+      mutationCache: new MutationCache({ onError }),
+      defaultOptions: {
+        queries: {
+          refetchOnWindowFocus: false,
+          retry: (failures, error) => !(error instanceof ApiError && error.status < 500) && failures < 2,
+        },
+      },
+    });
+  });
 
   useEffect(() => {
     getSession()
@@ -18,6 +37,7 @@ export function App() {
 
   async function handleLogout() {
     await logout().catch(() => undefined);
+    queryClient.clear();
     setAuth('signed-out');
   }
 
@@ -29,5 +49,9 @@ export function App() {
     );
   }
   if (auth === 'signed-out') return <LoginPage onLoggedIn={() => setAuth('signed-in')} />;
-  return <AppShell onLogout={handleLogout} />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AppShell onLogout={handleLogout} />
+    </QueryClientProvider>
+  );
 }

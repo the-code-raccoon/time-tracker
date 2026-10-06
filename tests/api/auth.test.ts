@@ -1,9 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashPassword } from '../../server/password.js';
 import { createSessionToken } from '../../server/session.js';
-import { POST as login, limiter } from './login.js';
-import { POST as logout } from './logout.js';
-import { GET as session } from './session.js';
+import { getLimiter, POST as login } from '../../api/auth/login.js';
+import { POST as logout } from '../../api/auth/logout.js';
+import { GET as session } from '../../api/auth/session.js';
 
 const PASSWORD = 'test password 123';
 const SECRET = 's'.repeat(32);
@@ -19,9 +19,10 @@ function loginRequest(body: unknown, ip = '203.0.113.1') {
 beforeAll(async () => {
   vi.stubEnv('APP_PASSWORD_HASH', await hashPassword(PASSWORD));
   vi.stubEnv('SESSION_SECRET', SECRET);
+  vi.stubEnv('DATABASE_URL', ''); // use the in-memory limiter
 });
 
-beforeEach(() => limiter.reset('203.0.113.1'));
+beforeEach(() => getLimiter().reset('203.0.113.1'));
 
 describe('POST /api/auth/login', () => {
   it('sets a session cookie for the correct password', async () => {

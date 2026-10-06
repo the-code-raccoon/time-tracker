@@ -97,6 +97,11 @@
   resolved "https://registry.yarnpkg.com/@bcoe/v8-coverage/-/v8-coverage-1.0.2.tgz#bbe12dca5b4ef983a0d0af4b07b9bc90ea0ababa"
   integrity sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==
 
+"@electric-sql/pglite@^0.5.8":
+  version "0.5.8"
+  resolved "https://registry.yarnpkg.com/@electric-sql/pglite/-/pglite-0.5.8.tgz#9b5b4a61a14d6cf96b3b4e2ea7f124f8d6fe68b3"
+  integrity sha512-n9tsbUOhwx2epK1V0ZG9Ar4SHWUju04dhmzZXiSBXwBoleOvIfals33NAaWgagQVAL4Rbvx/Ptsu3P+pA09f6Q==
+
 "@emotion/babel-plugin@^11.13.5":
   version "11.13.5"
   resolved "https://registry.yarnpkg.com/@emotion/babel-plugin/-/babel-plugin-11.13.5.tgz#eab8d65dbded74e0ecfd28dc218e75607c4e7bc0"
@@ -504,6 +509,18 @@
   resolved "https://registry.yarnpkg.com/@rolldown/pluginutils/-/pluginutils-1.0.1.tgz#e3fcee093fbb5ce765e1ad088ff4de2889f6f9be"
   integrity sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==
 
+"@tanstack/query-core@5.104.1":
+  version "5.104.1"
+  resolved "https://registry.yarnpkg.com/@tanstack/query-core/-/query-core-5.104.1.tgz#c9819a22f8183e423bbe04b71780a4e17b42aff8"
+  integrity sha512-TiRghcrGkUTE+M4JBxvpPSpBhxvIzQairw+cksrHYGr+2uwC77yW1SY9nYxnYRYOppvucf8rEg6b5byoz4rTpw==
+
+"@tanstack/react-query@^5.104.1":
+  version "5.104.1"
+  resolved "https://registry.yarnpkg.com/@tanstack/react-query/-/react-query-5.104.1.tgz#c9c6b66ea96f8b5f73f4f3491b1776036a3c5456"
+  integrity sha512-Zz70EgjahNI7aCz8BZxM3vUGU44ycxEAzMuCUjLeA7SVhhOkg3ZgPjPJPvHjs6Rmky/dtmnu1WzjGHNHmhCoZQ==
+  dependencies:
+    "@tanstack/query-core" "5.104.1"
+
 "@testing-library/dom@^10.4.2":
   version "10.4.2"
   resolved "https://registry.yarnpkg.com/@testing-library/dom/-/dom-10.4.2.tgz#e996827c4e5e1f13589527293b4b3958de2f709f"
@@ -758,6 +775,11 @@ csstype@^3.0.2, csstype@^3.2.2, csstype@^3.2.3:
   version "3.2.3"
   resolved "https://registry.yarnpkg.com/csstype/-/csstype-3.2.3.tgz#ec48c0f3e993e50648c86da559e2610995cf989a"
   integrity sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==
+
+date-fns@^4.4.0:
+  version "4.4.0"
+  resolved "https://registry.yarnpkg.com/date-fns/-/date-fns-4.4.0.tgz#806539edf45c616b2b76b5f78b88c56ed3c7e036"
+  integrity sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w==
 
 debug@^4.3.1:
   version "4.4.3"
@@ -1127,6 +1149,11 @@ postcss@^8.5.28:
     nanoid "^3.3.19"
     picocolors "^1.1.1"
     source-map-js "^1.2.2"
+
+postgres@^3.4.9:
+  version "3.4.9"
+  resolved "https://registry.yarnpkg.com/postgres/-/postgres-3.4.9.tgz#8e9a49cecb1b0e7d67a607f32a53ed54b3055271"
+  integrity sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw==
 
 pretty-format@^27.0.2:
   version "27.5.1"
