@@ -266,6 +266,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 | Google API      | `googleapis`, server-side OAuth 2.0 with a **web** client (`credentials.json` is already set up as a web client)                                                                                                                                                                                                                                                                                                                                                                           |
 | Database        | **PostgreSQL** hosted on Supabase (free tier), project `time-tracker` (`zunydbnypttnrcveflmi`, us-east-1). The app talks to it as plain Postgres using a standard driver (`postgres` / `pg`) and `DATABASE_URL`, through Supabase's transaction pooler (port 6543), which is meant for serverless. It does **not** use the Supabase JS client, auth or REST APIs, so the database is easy to move to any other Postgres host. Schema changes are plain SQL migrations in `db/migrations/`. |
 | Package manager | Yarn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Testing | **Vitest** with React Testing Library and jsdom for components. API handlers and sync logic are tested in Vitest too, with Google Calendar mocked and Postgres either mocked or a throwaway test database. |
 | Hosting         | Vercel (Hobby/free)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ### Environment variables
@@ -282,10 +283,15 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 
 - **Commits** follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/): `<type>(<scope>)?: <description>`. Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Breaking changes use `!` or a `BREAKING CHANGE:` footer. Suggested scopes: `auth`, `sync`, `calendar`, `entries`, `reports`, `shortcuts`, `db`, `ui`.
 - **Package manager:** Yarn only (no `package-lock.json`).
+- **Tests:** Vitest. `yarn test` runs the suite once; `yarn test:watch` runs it in watch mode; `yarn coverage` produces a coverage report.
+  - New features and bug fixes come with tests.
+  - Sync, conflict detection (SYNC-5), title normalisation (§5.4) and backup/restore (§5.5) have thorough unit tests, because they risk losing data.
+  - Tests never call the real Google Calendar or the production database.
+  - The suite must pass before a merge to `main`. Vercel runs it during the build.
 
 ## 10. Milestones
 
-1. **M0 — Scaffold:** Vite + React + TS + MUI dark theme, Yarn, Vercel config, password login.
+1. **M0 — Scaffold:** Vite + React + TS + MUI dark theme, Yarn, Vitest suite, Vercel config, password login.
 2. **M1 — Entries:** CRUD with database persistence; Day, Week and Schedule views; responsive layout.
 3. **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
 4. **M3 — Push + conflict detection + Reconcile UI.**
@@ -319,3 +325,4 @@ _None right now._
 | 2026-10-05 | Filled in §2.1 from a review of the calendar; categories = GCal colours; added autocomplete, 5-min snapping and overlap requirements; database → Supabase; added Conventional Commits.                                                                |
 | 2026-10-05 | Answered open questions: separate app/GCal category colours, title normalisation and activities, 30-day backups, server-side timer, full-history import. Database → plain PostgreSQL (hosted on Supabase). Expanded §2.1 to cover all sampled months. |
 | 2026-10-05 | Resolved the last open questions: no renaming of existing GCal events, exercise aliases → Banana, `tiering` → Leisure, most recent colour wins. |
+| 2026-10-05 | Added Vitest test-suite requirement. |
