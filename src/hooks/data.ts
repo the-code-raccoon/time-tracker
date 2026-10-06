@@ -12,6 +12,7 @@ import {
   fetchBackup,
   fetchBackups,
   fetchEntries,
+  fetchPreviousEntry,
   fetchReport,
   fetchTimer,
   fetchTitles,
@@ -43,6 +44,15 @@ export function useEntries(from: Date, to: Date) {
   return useQuery({
     queryKey: ['entries', from.toISOString(), to.toISOString()],
     queryFn: () => fetchEntries(from, to),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** TE-8: the last entry before `before`, for the new-entry editor. */
+export function usePreviousEntry(before: Date) {
+  return useQuery({
+    queryKey: ['entries', 'previous', before.toISOString()],
+    queryFn: () => fetchPreviousEntry(before),
     placeholderData: keepPreviousData,
   });
 }

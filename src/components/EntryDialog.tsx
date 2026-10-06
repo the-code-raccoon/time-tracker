@@ -10,8 +10,9 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { Category, TimeEntry, TimeEntryInput, TitleSuggestion } from '../../shared/types';
-import { createRange, isValidRange } from '../lib/timeRange';
+import { createRange, isValidRange, startFrom } from '../lib/timeRange';
 import { DateTimeRangeEditor } from './datetime/DateTimeRangeEditor';
+import { PreviousEntryHint } from './PreviousEntryHint';
 import { CategorySelect, TitleField } from './TitleField';
 
 export type EntryDraft =
@@ -114,7 +115,12 @@ export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onC
             autoFocus
           />
 
-          <DateTimeRangeEditor range={range} onChange={setRange} />
+          <Stack spacing={1}>
+            <DateTimeRangeEditor range={range} onChange={setRange} />
+            {draft.kind === 'create' && (
+              <PreviousEntryHint start={range.start} categories={categories} onStartFrom={(end) => setRange((r) => startFrom(r, end))} />
+            )}
+          </Stack>
 
           <CategorySelect value={categoryId} onChange={setCategoryId} categories={categories} />
 

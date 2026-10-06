@@ -29,13 +29,19 @@ export const makeEntry = (overrides: Partial<TimeEntry> = {}): TimeEntry => ({
 /** Local time "2026-10-07T09:30" → ISO string. */
 export const iso = (local: string) => new Date(local).toISOString();
 
+/** Same rule as the server's `?before=` query (TE-8): of the entries starting before it, the one ending last. */
+function previousOf(entries: TimeEntry[], before: string): TimeEntry | null {
+  const earlier = entries.filter((e) => e.start < before).sort((a, b) => b.end.localeCompare(a.end) || b.start.localeCompare(a.start));
+  return earlier[0] ?? null;
+}
+
 /** Stubs fetch with routes keyed by "METHOD /path" (query string ignored). Signed in, empty data by default. */
 export function mockApi(routes: Record<string, Route> = {}, entries: TimeEntry[] = []) {
   const all: Record<string, Route> = {
     'GET /api/auth/session': () => ({ status: 200, body: { authenticated: true } }),
     'GET /api/categories': () => ({ status: 200, body: CATEGORIES }),
     'GET /api/titles': () => ({ status: 200, body: TITLES }),
-    'GET /api/entries': () => ({ status: 200, body: entries }),
+    'GET /api/entries': (_init, url) => ({ status: 200, body: url.searchParams.has('before') ? previousOf(entries, url.searchParams.get('before')!) : entries }),
     'GET /api/timer': () => ({ status: 200, body: null }),
     'GET /api/google/status': () => ({ status: 200, body: { configured: true, connected: false, email: null, calendarId: 'cal', lastPullAt: null, pendingConflicts: 0 } }),
     ...routes,

@@ -1,8 +1,9 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CATEGORIES, TITLES } from '../test/mockApi';
-import { renderWithTheme } from '../test/render';
+import type { TimeEntry } from '../../shared/types';
+import { CATEGORIES, TITLES, iso, makeEntry, mockApi } from '../test/mockApi';
+import { renderWithProviders } from '../test/render';
 import { EntryDialog, type EntryDraft } from './EntryDialog';
 
 const NOW = new Date('2026-10-05T15:00'); // 3pm
@@ -14,9 +15,10 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-function setup(onSubmit = vi.fn(async () => {}), initial: EntryDraft = draft) {
+function setup(onSubmit = vi.fn(async () => {}), initial: EntryDraft = draft, entries: TimeEntry[] = []) {
   const onClose = vi.fn();
-  renderWithTheme(<EntryDialog draft={initial} categories={CATEGORIES} titles={TITLES} onSubmit={onSubmit} onClose={onClose} />);
+  mockApi({}, entries);
+  renderWithProviders(<EntryDialog draft={initial} categories={CATEGORIES} titles={TITLES} onSubmit={onSubmit} onClose={onClose} />);
   return { onSubmit, onClose, user: userEvent.setup() };
 }
 
@@ -160,5 +162,37 @@ describe('EntryDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('end must be after start');
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  describe('last entry (TE-8)', () => {
+    const work = makeEntry({ title: 'work', start: iso('2026-10-05T07:00'), end: iso('2026-10-05T09:00'), categoryId: CATEGORIES[1].id });
+
+    it('shows when the last entry before the start ended, and starts from there', async () => {
+      const { user, onSubmit } = setup(undefined, draft, [makeEntry({ title: 'chill', start: iso('2026-10-04T20:00'), end: iso('2026-10-04T21:00') }), work]);
+      expect(await screen.findByText(/ended 9 am \(30 min before\)/)).toHaveTextContent('Last entry: work, ended 9 am (30 min before)');
+
+      await user.click(screen.getByRole('button', { name: 'Start at 9 am' }));
+      expect(field('Start time')).toHaveValue('9:00am');
+      expect(field('End time')).toHaveValue('10:00am');
+      expect(await screen.findByText(/right before/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Start at/ })).not.toBeInTheDocument();
+
+      await user.type(screen.getByRole('combobox', { name: 'Title' }), 'journal');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ start: iso('2026-10-05T09:00'), end: iso('2026-10-05T10:00') })));
+    });
+
+    it('includes the date when the last entry ended on another day, and follows the start', async () => {
+      const { user } = setup(undefined, draft, [makeEntry({ title: 'chill', start: iso('2026-10-04T20:00'), end: iso('2026-10-04T21:00') })]);
+      expect(await screen.findByText(/ended Sun, Oct 4, 9 pm/)).toHaveTextContent('Last entry: chill, ended Sun, Oct 4, 9 pm (12 h 30 min before)');
+      await typeInto(user, 'Start date', 'oct 3');
+      await waitFor(() => expect(screen.queryByText(/Last entry/)).not.toBeInTheDocument());
+    });
+
+    it('is not shown when editing', async () => {
+      setup(undefined, { kind: 'edit', entry: makeEntry({ start: iso('2026-10-05T10:00'), end: iso('2026-10-05T11:00') }) }, [work]);
+      await screen.findByRole('heading', { name: 'Edit entry' });
+      expect(screen.queryByText(/Last entry/)).not.toBeInTheDocument();
+    });
   });
 });

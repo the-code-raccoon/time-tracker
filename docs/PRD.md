@@ -6,7 +6,7 @@
 | ---------------- | ---------- |
 | **Owner**        | F.H        |
 | **Status**       | Draft      |
-| **Last updated** | 2026-10-05 |
+| **Last updated** | 2026-10-06 |
 
 ---
 
@@ -106,6 +106,7 @@ There is one user, the owner, who uses the app from:
 | TE-5  | A start/stop timer for the activity happening now; stopping it creates an entry. The running timer is **stored server-side**, so a timer started on the phone can be seen and stopped on the desktop. |
 | TE-6  | Quick-add from a text input (e.g. `9-10:30 Deep work`). _(Nice to have)_                                                                                                                              |
 | TE-7  | All times are shown in `America/Toronto`, or the device timezone if that can be configured.                                                                                                           |
+| TE-8 | **Last entry:** when creating an entry, the editor shows the last entry before its start (title, category colour, when it ended and the gap, e.g. `Last entry: work, ended 9 am (30 min before)`; the date is added if it ended on another day). "Last" means the entry ending latest among those that start before the new one, so one still running counts. It follows the start as it changes. A **Start at 9 am** button moves the start to that end, keeping the end if it's still after the start (otherwise the duration). Not shown when editing. |
 
 ### 5.2a Categories
 
@@ -429,3 +430,4 @@ _None right now._
 | 2026-10-05 | Push retries Google rate limits with backoff (a bulk CAT-4 recolour had hit them). Added CAT-13; migration 0009 put the 57 uncategorised default-colour entries in Self-care. |
 | 2026-10-05 | M4 done: keyboard shortcuts (§5.7) with a help dialog, Go to date and search; Month view; server-side timer (migration 0010); drag to move, resize and create in Day and Week views (§5.2d). The optional custom view (`x` / `4`) was left out. |
 | 2026-10-06 | M5 done: Reports page (REP-1 – REP-3), Backups screen with restore to the app, Google Calendar or both (BAK-4), installable PWA. Deletions now record a cancelled last-seen event (migration 0011). |
+| 2026-10-06 | Added TE-8 (the new-entry editor shows the last entry, with a button to start from it; `GET /api/entries?before=`). |

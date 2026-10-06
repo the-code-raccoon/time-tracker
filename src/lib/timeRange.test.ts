@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createRange, isValidRange, setDuration, setEndDate, setEndTime, setStartDate, setStartTime } from './timeRange';
+import { createRange, isValidRange, setDuration, setEndDate, setEndTime, setStartDate, setStartTime, startFrom } from './timeRange';
 
 const d = (iso: string) => new Date(iso);
 const range = createRange(d('2026-10-05T09:30'), d('2026-10-05T10:00'));
@@ -41,5 +41,18 @@ describe('time range editing', () => {
 
   it('can cross midnight', () => {
     expect(setDuration(createRange(d('2026-10-05T23:00'), d('2026-10-05T23:30')), 120).end).toEqual(d('2026-10-06T01:00'));
+  });
+
+  it('starting from the last entry keeps the end while it is still after the start (TE-8)', () => {
+    const next = startFrom(range, d('2026-10-05T08:45'));
+    expect(next.start).toEqual(d('2026-10-05T08:45'));
+    expect(next.end).toEqual(d('2026-10-05T10:00'));
+    expect(next.durationMs).toBe(75 * 60_000);
+  });
+
+  it('starting from the last entry after the end keeps the duration (TE-8)', () => {
+    const next = startFrom(range, d('2026-10-05T10:15'));
+    expect(next.start).toEqual(d('2026-10-05T10:15'));
+    expect(next.end).toEqual(d('2026-10-05T10:45'));
   });
 });

@@ -40,6 +40,21 @@ export async function listEntries(db: Db, from: Date, to: Date): Promise<TimeEnt
 }
 
 /**
+ * The last entry before `before` (TE-8): of the entries that start before it, the one that ends last. An entry that
+ * overlaps `before` still counts, so a start rounded down to the 5-minute mark doesn't hide the entry it follows.
+ */
+export async function previousEntry(db: Db, before: Date): Promise<TimeEntry | null> {
+  const [row] = await db.query<EntryRow>(
+    `select ${ENTRY_COLUMNS} from time_entries
+      where deleted_at is null and starts_at < $1
+      order by ends_at desc, starts_at desc
+      limit 1`,
+    [before.toISOString()],
+  );
+  return row ? toEntry(row) : null;
+}
+
+/**
  * Search (`/`): entries whose title or notes contain the query, newest first. A query that is an alias also finds
  * its canonical title (NORM-5), so "gym" finds "exercise".
  */

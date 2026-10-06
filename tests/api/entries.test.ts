@@ -122,6 +122,31 @@ describe('GET /api/entries', () => {
   });
 });
 
+describe('GET /api/entries?before= (last entry, TE-8)', () => {
+  const previous = (before: string) => readJson<TimeEntry | null>(listEntries(apiRequest(`/api/entries?before=${before}`)));
+
+  it('returns the entry ending last among those that start before the time', async () => {
+    await create({ title: 'work', start: '2026-10-05T13:00:00Z', end: '2026-10-05T17:00:00Z' });
+    await create({ title: 'eat snack', start: '2026-10-05T15:00:00Z', end: '2026-10-05T15:10:00Z' });
+    await create({ title: 'stream', start: '2026-10-05T18:00:00Z', end: '2026-10-05T20:00:00Z' });
+    expect((await previous('2026-10-05T17:30:00Z'))?.title).toBe('work');
+    // An entry still running at that time counts; one starting exactly then does not.
+    expect((await previous('2026-10-05T16:55:00Z'))?.title).toBe('work');
+    expect((await previous('2026-10-05T18:00:00Z'))?.title).toBe('work');
+    expect((await previous('2026-10-05T19:00:00Z'))?.title).toBe('stream');
+  });
+
+  it('ignores deleted entries and returns null when there is none', async () => {
+    const entry = await readJson<TimeEntry>(await create({ title: 'work', start: '2026-10-05T13:00:00Z', end: '2026-10-05T17:00:00Z' }));
+    await deleteEntry(apiRequest(`/api/entries/${entry.id}`, { method: 'DELETE' }));
+    expect(await previous('2026-10-06T00:00:00Z')).toBeNull();
+  });
+
+  it('rejects a bad time', async () => {
+    expect((await listEntries(apiRequest('/api/entries?before=yesterday'))).status).toBe(400);
+  });
+});
+
 describe('GET /api/entries?q= (search)', () => {
   const search = (q: string) => readJson<TimeEntry[]>(listEntries(apiRequest(`/api/entries?q=${encodeURIComponent(q)}`)));
 

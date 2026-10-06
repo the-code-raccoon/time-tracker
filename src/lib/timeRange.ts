@@ -33,3 +33,9 @@ export const setEndTime = (range: TimeRange, minutes: number) => moveEnd(range, 
 export function setDuration(range: TimeRange, minutes: number): TimeRange {
   return { ...range, end: addMinutes(range.start, minutes), durationMs: minutes * 60_000 };
 }
+
+/** TE-8: start where the last entry ended. The end stays put while it's still after the start; otherwise the duration is kept. */
+export function startFrom(range: TimeRange, start: Date): TimeRange {
+  if (range.end > start) return createRange(start, range.end);
+  return moveStart(range, start);
+}

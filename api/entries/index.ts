@@ -1,13 +1,18 @@
 import { getDb } from '../../server/db.js';
 import { authed, json, readJson } from '../../server/http.js';
-import { canonicalizeTitle, createEntry, listEntries, searchEntries } from '../../server/repositories/entries.js';
-import { parseEntryInput, parseRange, parseSearchQuery } from '../../server/validation.js';
+import { canonicalizeTitle, createEntry, listEntries, previousEntry, searchEntries } from '../../server/repositories/entries.js';
+import { parseBefore, parseEntryInput, parseRange, parseSearchQuery } from '../../server/validation.js';
 
-/** GET /api/entries?from=ISO&to=ISO — entries overlapping the range; GET /api/entries?q=text — search, newest first. */
+/**
+ * GET /api/entries?from=ISO&to=ISO — entries overlapping the range; GET /api/entries?q=text — search, newest first;
+ * GET /api/entries?before=ISO — the last entry before that time, or null (TE-8).
+ */
 export const GET = authed(async (request) => {
   const url = new URL(request.url);
   const query = parseSearchQuery(url);
   if (query !== null) return json(await searchEntries(getDb(), query));
+  const before = parseBefore(url);
+  if (before !== null) return json(await previousEntry(getDb(), before));
   const { from, to } = parseRange(url);
   return json(await listEntries(getDb(), from, to));
 });

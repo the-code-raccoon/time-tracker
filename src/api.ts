@@ -67,6 +67,11 @@ export function searchEntries(query: string): Promise<TimeEntry[]> {
   return request(`/api/entries?${new URLSearchParams({ q: query })}`);
 }
 
+/** TE-8: the last entry before `before`, or null. */
+export function fetchPreviousEntry(before: Date): Promise<TimeEntry | null> {
+  return request(`/api/entries?${new URLSearchParams({ before: before.toISOString() })}`);
+}
+
 export function createEntry(input: TimeEntryInput): Promise<TimeEntry> {
   return request('/api/entries', { method: 'POST', body: JSON.stringify(input) });
 }

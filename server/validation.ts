@@ -75,6 +75,12 @@ export function parseRange(url: URL): { from: Date; to: Date } {
   return { from, to };
 }
 
+/** `?before=ISO` for the last entry before a time (TE-8), or null when absent. */
+export function parseBefore(url: URL): Date | null {
+  const before = url.searchParams.get('before');
+  return before === null ? null : new Date(parseDate(before, 'before'));
+}
+
 export function parseCategoryFields(body: unknown, { partial }: { partial: boolean }): Partial<CategoryInput> {
   const record = asRecord(body);
   const result: Partial<CategoryInput> = {};
