@@ -1,5 +1,6 @@
 import { normalizeTitle } from '../shared/titles.js';
-import type { TimeEntryInput } from '../shared/types.js';
+import { GCAL_COLORS } from '../shared/gcalColors.js';
+import type { CategoryInput, TimeEntryInput } from '../shared/types.js';
 import { HttpError } from './http.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -73,3 +74,44 @@ export function parseRange(url: URL): { from: Date; to: Date } {
   if (to.getTime() - from.getTime() > 100 * MAX_ENTRY_MS) throw new HttpError(400, 'Range can be at most 100 days');
   return { from, to };
 }
+
+export function parseCategoryFields(body: unknown, { partial }: { partial: boolean }): Partial<CategoryInput> {
+  const record = asRecord(body);
+  const result: Partial<CategoryInput> = {};
+  if (record.name !== undefined || !partial) {
+    if (typeof record.name !== 'string' || !record.name.trim() || record.name.trim().length > 60) {
+      throw new HttpError(400, 'name must be 1–60 characters');
+    }
+    result.name = record.name.trim().replace(/\s+/g, ' ');
+  }
+  if (record.appColor !== undefined || !partial) {
+    if (typeof record.appColor !== 'string' || !/^#[0-9a-f]{6}$/i.test(record.appColor)) {
+      throw new HttpError(400, 'appColor must be a #rrggbb colour');
+    }
+    result.appColor = record.appColor.toLowerCase();
+  }
+  if (record.gcalColorId !== undefined || !partial) {
+    const value = record.gcalColorId ?? null;
+    if (value !== null && !GCAL_COLORS.some((color) => color.id === value)) {
+      throw new HttpError(400, 'gcalColorId must be a Google Calendar colour id (1–11) or null');
+    }
+    result.gcalColorId = value as string | null;
+  }
+  if (partial && Object.keys(result).length === 0) throw new HttpError(400, 'Nothing to update');
+  return result;
+}
+
+export function parseOptionalUuid(value: unknown, field: string): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string' || !UUID.test(value)) throw new HttpError(400, `${field} must be a UUID or null`);
+  return value;
+}
+
+export function parseTitle(value: unknown): string {
+  if (typeof value !== 'string') throw new HttpError(400, 'title must be a string');
+  const title = normalizeTitle(value);
+  if (!title) throw new HttpError(400, 'title is required');
+  return title;
+}
+
+export { asRecord };

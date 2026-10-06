@@ -1,4 +1,4 @@
-import type { Category, TimeEntry, TimeEntryInput, TitleSuggestion } from '../shared/types';
+import type { Category, CategoryInput, TimeEntry, TimeEntryInput, TitleSuggestion } from '../shared/types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -62,4 +62,30 @@ export function fetchCategories(): Promise<Category[]> {
 
 export function fetchTitles(): Promise<TitleSuggestion[]> {
   return request('/api/titles');
+}
+
+export function restoreEntry(id: string): Promise<TimeEntry> {
+  return request('/api/entries/restore', { method: 'POST', body: JSON.stringify({ id }) });
+}
+
+export function moveEntriesByTitle(title: string, categoryId: string | null): Promise<{ moved: number }> {
+  return request('/api/entries/recategorize', { method: 'POST', body: JSON.stringify({ title, categoryId }) });
+}
+
+export function createCategory(input: CategoryInput): Promise<Category> {
+  return request('/api/categories', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateCategory(id: string, patch: Partial<CategoryInput>): Promise<Category> {
+  return request(`/api/categories/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) });
+}
+
+/** Deletes a category, moving its entries to `moveTo` (merge) or leaving them uncategorised (null). */
+export function deleteCategory(id: string, moveTo: string | null): Promise<{ moved: number }> {
+  const params = new URLSearchParams({ moveTo: moveTo ?? 'none' });
+  return request(`/api/categories/${encodeURIComponent(id)}?${params}`, { method: 'DELETE' });
+}
+
+export function reorderCategories(ids: string[]): Promise<Category[]> {
+  return request('/api/categories/reorder', { method: 'POST', body: JSON.stringify({ ids }) });
 }

@@ -4,8 +4,8 @@ import type { Category, TimeEntry, TitleSuggestion } from '../../shared/types';
 export type Route = (init: RequestInit | undefined, url: URL) => { status: number; body?: unknown };
 
 export const CATEGORIES: Category[] = [
-  { id: '00000000-0000-4000-8000-000000000001', name: 'Food', appColor: '#0b8043', gcalColorId: '10', sortOrder: 1 },
-  { id: '00000000-0000-4000-8000-000000000002', name: 'Leisure', appColor: '#039be5', gcalColorId: '7', sortOrder: 2 },
+  { id: '00000000-0000-4000-8000-000000000001', name: 'Food', appColor: '#0b8043', gcalColorId: '10', sortOrder: 1, entryCount: 3, totalMinutes: 45, syncedCount: 0 },
+  { id: '00000000-0000-4000-8000-000000000002', name: 'Leisure', appColor: '#039be5', gcalColorId: '7', sortOrder: 2, entryCount: 1, totalMinutes: 60, syncedCount: 0 },
 ];
 
 export const TITLES: TitleSuggestion[] = [

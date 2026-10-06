@@ -4,26 +4,36 @@ import { readableTextColor } from '../../lib/color';
 import { formatTime, formatTimeRange } from '../../lib/dates';
 import { MIN_VISUAL_MINUTES, type Positioned } from '../../lib/layout';
 import type { TimeEntry } from '../../../shared/types';
+import { useLongPress } from '../../hooks/useLongPress';
+import { contextMenuPosition, type OpenEntryMenu } from './entryMenu';
 
 type Props = {
   block: Positioned<TimeEntry>;
   color: string;
   pxPerMinute: number;
   onSelect: (entry: TimeEntry) => void;
+  onOpenMenu: OpenEntryMenu;
 };
 
-export function EntryBlock({ block, color, pxPerMinute, onSelect }: Props) {
+export function EntryBlock({ block, color, pxPerMinute, onSelect, onOpenMenu }: Props) {
   const { item: entry, top, height, column, columns } = block;
   const start = new Date(entry.start);
   const end = new Date(entry.end);
   const pixelHeight = Math.max(height, MIN_VISUAL_MINUTES) * pxPerMinute - 2;
   const twoLines = pixelHeight >= 34;
+  const longPress = useLongPress((position) => onOpenMenu(entry, position));
 
   return (
     <ButtonBase
+      {...longPress.handlers}
       onClick={(event) => {
         event.stopPropagation();
-        onSelect(entry);
+        if (!longPress.wasLongPress()) onSelect(entry);
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!longPress.wasLongPress()) onOpenMenu(entry, contextMenuPosition(event));
       }}
       aria-label={`${entry.title}, ${formatTimeRange(start, end)}`}
       title={`${entry.title}\n${formatTimeRange(start, end)}`}
@@ -43,6 +53,8 @@ export function EntryBlock({ block, color, pxPerMinute, onSelect }: Props) {
         overflow: 'hidden',
         display: 'block',
         textAlign: 'left',
+        userSelect: 'none',
+        WebkitTouchCallout: 'none',
         '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', zIndex: 2 },
       }}
     >

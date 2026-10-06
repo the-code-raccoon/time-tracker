@@ -6,6 +6,16 @@ export type Category = {
   appColor: string;
   gcalColorId: string | null;
   sortOrder: number;
+  entryCount: number;
+  totalMinutes: number;
+  /** Entries linked to a Google Calendar event (recoloured on the next sync when the GCal colour changes). */
+  syncedCount: number;
+};
+
+export type CategoryInput = {
+  name: string;
+  appColor: string;
+  gcalColorId: string | null;
 };
 
 export type TimeEntry = {

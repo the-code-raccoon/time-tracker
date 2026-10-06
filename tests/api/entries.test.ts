@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { GET as listCategories } from '../../api/categories.js';
+import { GET as listCategories } from '../../api/categories/index.js';
 import { DELETE as deleteEntry, PATCH as patchEntry } from '../../api/entries/[id].js';
 import { GET as listEntries, POST as createEntry } from '../../api/entries/index.js';
 import { GET as listTitles } from '../../api/titles.js';

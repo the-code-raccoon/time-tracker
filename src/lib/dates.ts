@@ -24,25 +24,17 @@ export function daysBetween(start: Date, end: Date): Date[] {
   return days;
 }
 
-/** Toolbar title, e.g. "October 5, 2026", "Sep 27 – Oct 3, 2026" or "October 2026". */
-export function rangeTitle(view: ViewMode, date: Date): string {
-  if (view === 'day') return format(date, 'MMMM d, yyyy');
+/**
+ * Toolbar title, e.g. "October 5, 2026", "Sep – Oct 2026" or "October 2026".
+ * `short` is for phones: "Oct 5" and "Oct 2026".
+ */
+export function rangeTitle(view: ViewMode, date: Date, short = false): string {
+  if (view === 'day') return format(date, short ? 'MMM d' : 'MMMM d, yyyy');
   const { start, end } = viewRange(view, date);
   const last = addDays(end, -1);
-  if (isSameMonth(start, last)) return format(start, 'MMMM yyyy');
+  if (isSameMonth(start, last)) return format(start, short ? 'MMM yyyy' : 'MMMM yyyy');
   if (isSameYear(start, last)) return `${format(start, 'MMM')} – ${format(last, 'MMM yyyy')}`;
   return `${format(start, 'MMM yyyy')} – ${format(last, 'MMM yyyy')}`;
-}
-
-/** Value for <input type="datetime-local">. */
-export function toLocalInput(date: Date): string {
-  return format(date, "yyyy-MM-dd'T'HH:mm");
-}
-
-/** Parses an <input type="datetime-local"> value as local time. */
-export function fromLocalInput(value: string): Date | null {
-  const date = new Date(value);
-  return value && !Number.isNaN(date.getTime()) ? date : null;
 }
 
 export function formatTime(date: Date): string {
@@ -66,4 +58,10 @@ export function snapMinutes(date: Date, step: number): Date {
   const snapped = new Date(date);
   snapped.setMinutes(Math.floor(date.getMinutes() / step) * step, 0, 0);
   return snapped;
+}
+
+/** Total hours, e.g. "27.8 h" or "298 h". */
+export function formatHours(minutes: number): string {
+  const hours = minutes / 60;
+  return `${hours >= 100 ? Math.round(hours) : Math.round(hours * 10) / 10} h`;
 }

@@ -11,12 +11,23 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
-import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { Category, TimeEntry, TimeEntryInput, TitleSuggestion } from '../../shared/types';
 import { UNCATEGORISED_COLOR } from '../lib/color';
-import { formatDuration, fromLocalInput, toLocalInput } from '../lib/dates';
+import { createRange, isValidRange } from '../lib/timeRange';
+import { DateTimeRangeEditor } from './datetime/DateTimeRangeEditor';
 
-export type EntryDraft = { kind: 'create'; start: Date; end: Date } | { kind: 'edit'; entry: TimeEntry };
+export type EntryDraft =
+  | {
+      kind: 'create';
+      start: Date;
+      end: Date;
+      /** Prefilled fields, e.g. when duplicating (CTX-4). */
+      title?: string;
+      categoryId?: string | null;
+      notes?: string | null;
+    }
+  | { kind: 'edit'; entry: TimeEntry };
 
 type Props = {
   draft: EntryDraft;
@@ -27,31 +38,25 @@ type Props = {
   onClose: () => void;
 };
 
-const MINUTE_STEP_SECONDS = 5 * 60; // TE-1b
-
 export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onClose }: Props) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
-  const entry = draft.kind === 'edit' ? draft.entry : undefined;
+  const initial =
+    draft.kind === 'edit'
+      ? { ...draft.entry, start: new Date(draft.entry.start), end: new Date(draft.entry.end) }
+      : { ...draft, title: draft.title ?? '', categoryId: draft.categoryId ?? null, notes: draft.notes ?? null };
 
-  const initialStart = entry ? new Date(entry.start) : (draft as { start: Date }).start;
-  const initialEnd = entry ? new Date(entry.end) : (draft as { end: Date }).end;
-
-  const [title, setTitle] = useState(entry?.title ?? '');
-  const [categoryId, setCategoryId] = useState(entry?.categoryId ?? '');
-  const [start, setStart] = useState(() => toLocalInput(initialStart));
-  const [end, setEnd] = useState(() => toLocalInput(initialEnd));
-  const [duration, setDuration] = useState(() => initialEnd.getTime() - initialStart.getTime());
-  const [notes, setNotes] = useState(entry?.notes ?? '');
+  const [title, setTitle] = useState(initial.title);
+  const [categoryId, setCategoryId] = useState(initial.categoryId ?? '');
+  const [range, setRange] = useState(() => createRange(initial.start, initial.end));
+  const [notes, setNotes] = useState(initial.notes ?? '');
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
-  const startDate = fromLocalInput(start);
-  const endDate = fromLocalInput(end);
   const titleError = submitted && !title.trim() ? 'Add a title' : undefined;
-  const timeError =
-    !startDate || !endDate ? 'Enter a start and end' : endDate <= startDate ? 'End must be after start' : undefined;
+  const valid = isValidRange(range);
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
@@ -68,12 +73,12 @@ export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onC
   function handleSubmit(event?: FormEvent) {
     event?.preventDefault();
     setSubmitted(true);
-    if (!title.trim() || timeError || !startDate || !endDate) return;
+    if (!title.trim() || !valid) return;
     void run(() =>
       onSubmit({
         title,
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
+        start: range.start.toISOString(),
+        end: range.end.toISOString(),
         categoryId: categoryId || null,
         notes: notes.trim() ? notes : null,
       }),
@@ -83,21 +88,10 @@ export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onC
   function handleKeyDown(event: KeyboardEvent) {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
       event.preventDefault();
-      handleSubmit();
+      // A date/time field commits typed text on blur; submit after that update has rendered.
+      (document.activeElement as HTMLElement | null)?.blur();
+      setTimeout(() => formRef.current?.requestSubmit(), 0);
     }
-  }
-
-  function handleStartChange(value: string) {
-    // Keep the last valid duration when the start moves, like Google Calendar.
-    const nextStart = fromLocalInput(value);
-    if (nextStart) setEnd(toLocalInput(new Date(nextStart.getTime() + duration)));
-    setStart(value);
-  }
-
-  function handleEndChange(value: string) {
-    const nextEnd = fromLocalInput(value);
-    if (startDate && nextEnd && nextEnd > startDate) setDuration(nextEnd.getTime() - startDate.getTime());
-    setEnd(value);
   }
 
   return (
@@ -106,11 +100,11 @@ export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onC
       onClose={busy ? undefined : onClose}
       fullScreen={fullScreen}
       fullWidth
-      maxWidth="xs"
+      maxWidth="sm"
       onKeyDown={handleKeyDown}
-      slotProps={{ paper: { component: 'form', onSubmit: handleSubmit, noValidate: true } as object }}
+      slotProps={{ paper: { component: 'form', ref: formRef, onSubmit: handleSubmit, noValidate: true } as object }}
     >
-      <DialogTitle>{entry ? 'Edit entry' : 'New entry'}</DialogTitle>
+      <DialogTitle>{draft.kind === 'edit' ? 'Edit entry' : 'New entry'}</DialogTitle>
       <DialogContent>
         <Stack spacing={2.5} sx={{ pt: 1 }}>
           <Autocomplete
@@ -149,6 +143,8 @@ export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onC
             )}
           />
 
+          <DateTimeRangeEditor range={range} onChange={setRange} />
+
           <TextField select label="Category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
             <MenuItem value="">
               <em>None</em>
@@ -160,27 +156,6 @@ export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onC
               </MenuItem>
             ))}
           </TextField>
-
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <TextField
-              label="Start"
-              type="datetime-local"
-              value={start}
-              onChange={(event) => handleStartChange(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: MINUTE_STEP_SECONDS } }}
-              fullWidth
-            />
-            <TextField
-              label="End"
-              type="datetime-local"
-              value={end}
-              onChange={(event) => handleEndChange(event.target.value)}
-              error={!!timeError}
-              helperText={timeError ?? (startDate && endDate ? formatDuration(startDate, endDate) : ' ')}
-              slotProps={{ inputLabel: { shrink: true }, htmlInput: { step: MINUTE_STEP_SECONDS } }}
-              fullWidth
-            />
-          </Stack>
 
           <TextField label="Notes" multiline minRows={2} value={notes} onChange={(event) => setNotes(event.target.value)} />
 
@@ -200,7 +175,7 @@ export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onC
         <Button onClick={onClose} disabled={busy} color="inherit">
           Cancel
         </Button>
-        <Button type="submit" variant="contained" disabled={busy}>
+        <Button type="submit" variant="contained" disabled={busy || !valid}>
           Save
         </Button>
       </DialogActions>

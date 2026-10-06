@@ -1,5 +1,6 @@
 import type { TimeEntry, TimeEntryInput, TitleSuggestion } from '../../shared/types.js';
 import type { Db } from '../db.js';
+import { pruneBackups } from './backups.js';
 
 type Row = {
   id: string;
@@ -104,4 +105,32 @@ export async function listTitleSuggestions(db: Db, limit = 500): Promise<TitleSu
     [limit],
   );
   return rows.map((row) => ({ title: row.title, categoryId: row.category_id, count: row.count }));
+}
+
+/** Undoes a soft delete. Returns null when the entry doesn't exist or isn't deleted. */
+export async function restoreEntry(db: Db, id: string): Promise<TimeEntry | null> {
+  const [row] = await db.query<Row>(
+    `update time_entries set deleted_at = null, updated_at = now()
+      where id = $1 and deleted_at is not null
+      returning ${COLUMNS}`,
+    [id],
+  );
+  return row ? toEntry(row) : null;
+}
+
+/** CAT-12: moves every entry with this (normalised) title to a category, after taking a backup. */
+export async function moveEntriesByTitle(db: Db, title: string, categoryId: string | null): Promise<number> {
+  const moved = await db.query(
+    `with snapshot as (
+       insert into backups (trigger, description, entries)
+       select 'bulk-move', 'Move "' || $1 || '" entries', coalesce(jsonb_agg(to_jsonb(e)), '[]'::jsonb)
+         from time_entries e where e.title = $1 and e.deleted_at is null
+     )
+     update time_entries set category_id = $2, updated_at = now()
+      where title = $1 and deleted_at is null and category_id is distinct from $2
+     returning id`,
+    [title, categoryId],
+  );
+  await pruneBackups(db);
+  return moved.length;
 }

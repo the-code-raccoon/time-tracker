@@ -2,6 +2,7 @@ import Add from '@mui/icons-material/Add';
 import ChevronLeft from '@mui/icons-material/ChevronLeft';
 import ChevronRight from '@mui/icons-material/ChevronRight';
 import Logout from '@mui/icons-material/Logout';
+import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
@@ -20,10 +21,11 @@ type Props = {
   onPrevious: () => void;
   onNext: () => void;
   onCreate: () => void;
+  onOpenSettings: () => void;
   onLogout: () => void;
 };
 
-export function CalendarToolbar({ title, view, compact, onViewChange, onToday, onPrevious, onNext, onCreate, onLogout }: Props) {
+export function CalendarToolbar({ title, view, compact, onViewChange, onToday, onPrevious, onNext, onCreate, onOpenSettings, onLogout }: Props) {
   const period = VIEW_LABELS[view].toLowerCase();
   return (
     <Toolbar sx={{ gap: { xs: 0.5, sm: 1 }, px: { xs: 1, sm: 2 } }}>
@@ -54,7 +56,7 @@ export function CalendarToolbar({ title, view, compact, onViewChange, onToday, o
         value={view}
         onChange={(event) => onViewChange(event.target.value as ViewMode)}
         slotProps={{ htmlInput: { 'aria-label': 'View' } }}
-        sx={{ minWidth: compact ? 0 : 120 }}
+        sx={{ minWidth: compact ? 104 : 120, flexShrink: 0 }}
       >
         {(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => (
           <MenuItem key={mode} value={mode}>
@@ -62,6 +64,11 @@ export function CalendarToolbar({ title, view, compact, onViewChange, onToday, o
           </MenuItem>
         ))}
       </TextField>
+      <Tooltip title="Categories">
+        <IconButton aria-label="Categories" onClick={onOpenSettings} size={compact ? 'small' : 'medium'}>
+          <SettingsOutlined />
+        </IconButton>
+      </Tooltip>
       <Tooltip title="Sign out">
         <IconButton aria-label="Sign out" onClick={onLogout} size={compact ? 'small' : 'medium'}>
           <Logout />

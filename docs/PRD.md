@@ -328,7 +328,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 
 1. ✅ **M0 — Scaffold:** Vite + React + TS + MUI dark theme, Yarn, Vitest suite, Vercel config, password login.
 2. ✅ **M1 — Entries:** CRUD with database persistence; Day, Week and Schedule views; responsive layout.
-3. **M1b — Editing:** Google Calendar-style date/time controls (§5.2b), entry context menu (§5.2c), Categories page (CAT-7 – CAT-12).
+3. ✅ **M1b — Editing:** Google Calendar-style date/time controls (§5.2b), entry context menu (§5.2c), Categories page (CAT-7 – CAT-12).
 4. **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
 5. **M3 — Push + conflict detection + Reconcile UI.**
 6. **M4 — Keyboard shortcuts**, Month view, timer, drag to create/move/resize (TE-3, TE-4; M1 has click-to-create and edit via dialog).
@@ -367,3 +367,4 @@ _None right now._
 | 2026-10-05 | M1 done: Postgres schema (migrations 0001–0002, RLS on), entries CRUD API, Day/Week/Schedule views, entry dialog with title autocomplete. Login rate limit now in Postgres. Drag interactions moved to M4. |
 | 2026-10-05 | Added Google Calendar-style date/time editing (§5.2b), entry context menu (§5.2c) and a Categories page (CAT-7 – CAT-12), as new milestone M1b. |
 | 2026-10-05 | DT-6: the end time's am/pm is inferred from the start time, as Google Calendar does. |
+| 2026-10-05 | M1b done: Google Calendar-style date/time editor, right-click/long-press entry menu with undo, Categories page. Added the `backups` table (migration 0003); category delete/merge and move-by-title take a backup first. |

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { daysBetween, formatDuration, formatTimeRange, fromLocalInput, rangeTitle, shiftDate, snapMinutes, toLocalInput, viewRange } from './dates';
+import { daysBetween, formatDuration, formatTimeRange, rangeTitle, shiftDate, snapMinutes, viewRange } from './dates';
 
 const d = (iso: string) => new Date(iso); // no offset → local time
 
@@ -39,6 +39,16 @@ describe('rangeTitle', () => {
   });
 });
 
+describe('rangeTitle (short, for phones)', () => {
+  it.each([
+    ['day', '2026-10-05T12:00', 'Oct 5'],
+    ['week', '2026-10-14T12:00', 'Oct 2026'],
+    ['week', '2026-10-01T12:00', 'Sep – Oct 2026'],
+  ] as const)('%s of %s', (view, date, expected) => {
+    expect(rangeTitle(view, d(date), true)).toBe(expected);
+  });
+});
+
 describe('formatting', () => {
   it('formats time ranges like Google Calendar', () => {
     expect(formatTimeRange(d('2026-10-05T09:00'), d('2026-10-05T10:30'))).toBe('9 am – 10:30 am');
@@ -50,13 +60,6 @@ describe('formatting', () => {
     ['2026-10-05T17:50', '2026-10-06T02:30', '8 h 40 min'],
   ])('duration %s → %s', (start, end, expected) => {
     expect(formatDuration(d(start), d(end))).toBe(expected);
-  });
-
-  it('round-trips datetime-local values', () => {
-    const date = d('2026-10-05T09:35');
-    expect(toLocalInput(date)).toBe('2026-10-05T09:35');
-    expect(fromLocalInput('2026-10-05T09:35')).toEqual(date);
-    expect(fromLocalInput('')).toBeNull();
   });
 
   it('snaps down to the step', () => {

@@ -16,19 +16,23 @@ import { daysBetween, rangeTitle, shiftDate, snapMinutes, viewRange, type ViewMo
 import { CalendarToolbar } from './calendar/CalendarToolbar';
 import { ScheduleView } from './calendar/ScheduleView';
 import { TimeGrid } from './calendar/TimeGrid';
+import { EntryContextMenu, type ContextMenuState } from './EntryContextMenu';
 import { EntryDialog, type EntryDraft } from './EntryDialog';
 
 const DEFAULT_DURATION_MINUTES = 30;
 
-type Props = { onLogout: () => void };
+type Notice = { text: string; undo?: () => void };
 
-export function AppShell({ onLogout }: Props) {
+type Props = { onOpenSettings: () => void; onLogout: () => void };
+
+export function AppShell({ onOpenSettings, onLogout }: Props) {
   const theme = useTheme();
   const compact = useMediaQuery(theme.breakpoints.down('sm'));
   const [view, setView] = useState<ViewMode>(() => (compact ? 'day' : 'week'));
   const [date, setDate] = useState(() => new Date());
   const [draft, setDraft] = useState<EntryDraft | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [menu, setMenu] = useState<ContextMenuState | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   const { start, end } = viewRange(view, date);
   const startMs = start.getTime();
@@ -48,17 +52,44 @@ export function AppShell({ onLogout }: Props) {
     setDraft({ kind: 'create', start: at, end: addMinutes(at, DEFAULT_DURATION_MINUTES) });
   }
 
-  function openEdit(entry: TimeEntry) {
-    setDraft({ kind: 'edit', entry });
+  function report(error: unknown) {
+    setNotice({ text: error instanceof Error ? error.message : 'Something went wrong' });
   }
 
+  async function deleteWithUndo(entry: TimeEntry) {
+    await mutations.remove.mutateAsync(entry.id);
+    setNotice({ text: 'Entry deleted', undo: () => mutations.restore.mutateAsync(entry.id).catch(report) });
+  }
+
+  async function changeCategory(entry: TimeEntry, categoryId: string | null) {
+    const previous = entry.categoryId;
+    await mutations.update.mutateAsync({ id: entry.id, patch: { categoryId } });
+    const name = (categoryId && categoryMap.get(categoryId)?.name) ?? 'no category';
+    setNotice({
+      text: `Moved to ${name}`,
+      undo: () => mutations.update.mutateAsync({ id: entry.id, patch: { categoryId: previous } }).catch(report),
+    });
+  }
+
+  function duplicate(entry: TimeEntry) {
+    setDraft({
+      kind: 'create',
+      start: new Date(entry.start),
+      end: new Date(entry.end),
+      title: entry.title,
+      categoryId: entry.categoryId,
+      notes: entry.notes,
+    });
+  }
+
+  const openMenu = (entry: TimeEntry, position: { x: number; y: number }) => setMenu({ entry, ...position });
   const editing = draft?.kind === 'edit' ? draft.entry : undefined;
 
   return (
     <Box sx={{ height: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="static" sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.default' }}>
         <CalendarToolbar
-          title={rangeTitle(view, date)}
+          title={rangeTitle(view, date, compact)}
           view={view}
           compact={compact}
           onViewChange={setView}
@@ -66,6 +97,7 @@ export function AppShell({ onLogout }: Props) {
           onPrevious={() => setDate((d) => shiftDate(view, d, -1))}
           onNext={() => setDate((d) => shiftDate(view, d, 1))}
           onCreate={() => openCreate()}
+          onOpenSettings={onOpenSettings}
           onLogout={onLogout}
         />
         <Box sx={{ height: 2 }}>{entries.isFetching && <LinearProgress sx={{ height: 2 }} />}</Box>
@@ -87,14 +119,21 @@ export function AppShell({ onLogout }: Props) {
 
       <Box component="main" sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {view === 'schedule' ? (
-          <ScheduleView days={days} entries={entries.data ?? []} categories={categoryMap} onSelect={openEdit} />
+          <ScheduleView
+            days={days}
+            entries={entries.data ?? []}
+            categories={categoryMap}
+            onSelect={(entry) => setDraft({ kind: 'edit', entry })}
+            onOpenMenu={openMenu}
+          />
         ) : (
           <TimeGrid
             days={days}
             entries={entries.data ?? []}
             categories={categoryMap}
             onCreateAt={openCreate}
-            onSelect={openEdit}
+            onSelect={(entry) => setDraft({ kind: 'edit', entry })}
+            onOpenMenu={openMenu}
             onDayClick={(day) => {
               setDate(day);
               setView('day');
@@ -109,9 +148,18 @@ export function AppShell({ onLogout }: Props) {
         </Fab>
       )}
 
+      <EntryContextMenu
+        state={menu}
+        categories={categories.data ?? []}
+        onClose={() => setMenu(null)}
+        onChangeCategory={(entry, categoryId) => void changeCategory(entry, categoryId).catch(report)}
+        onDuplicate={duplicate}
+        onDelete={(entry) => void deleteWithUndo(entry).catch(report)}
+      />
+
       {draft && (
         <EntryDialog
-          key={editing?.id ?? 'new'}
+          key={editing?.id ?? `new-${draft.kind === 'create' ? draft.start.getTime() : ''}`}
           draft={draft}
           categories={categories.data ?? []}
           titles={titles.data ?? []}
@@ -119,20 +167,32 @@ export function AppShell({ onLogout }: Props) {
           onSubmit={async (input) => {
             if (editing) await mutations.update.mutateAsync({ id: editing.id, patch: input });
             else await mutations.create.mutateAsync(input);
-            setMessage(editing ? 'Entry updated' : 'Entry created');
+            setNotice({ text: editing ? 'Entry updated' : 'Entry created' });
           }}
-          onDelete={
-            editing
-              ? async () => {
-                  await mutations.remove.mutateAsync(editing.id);
-                  setMessage('Entry deleted');
-                }
-              : undefined
-          }
+          onDelete={editing ? () => deleteWithUndo(editing) : undefined}
         />
       )}
 
-      <Snackbar open={!!message} autoHideDuration={3000} onClose={() => setMessage(null)} message={message} />
+      <Snackbar
+        open={!!notice}
+        autoHideDuration={notice?.undo ? 6000 : 3000}
+        onClose={(_, reason) => reason !== 'clickaway' && setNotice(null)}
+        message={notice?.text}
+        action={
+          notice?.undo && (
+            <Button
+              color="primary"
+              size="small"
+              onClick={() => {
+                notice.undo?.();
+                setNotice(null);
+              }}
+            >
+              Undo
+            </Button>
+          )
+        }
+      />
     </Box>
   );
 }

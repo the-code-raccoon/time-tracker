@@ -5,16 +5,19 @@ import { addDays, format, isSameDay } from 'date-fns';
 import type { Category, TimeEntry } from '../../../shared/types';
 import { UNCATEGORISED_COLOR } from '../../lib/color';
 import { formatDuration, formatTimeRange } from '../../lib/dates';
+import { useLongPress } from '../../hooks/useLongPress';
 import { useNow } from '../../hooks/useNow';
+import { contextMenuPosition, type OpenEntryMenu } from './entryMenu';
 
 type Props = {
   days: Date[];
   entries: TimeEntry[];
   categories: Map<string, Category>;
   onSelect: (entry: TimeEntry) => void;
+  onOpenMenu: OpenEntryMenu;
 };
 
-export function ScheduleView({ days, entries, categories, onSelect }: Props) {
+export function ScheduleView({ days, entries, categories, onSelect, onOpenMenu }: Props) {
   const now = useNow();
   const groups = days
     .map((day) => ({
@@ -50,34 +53,61 @@ export function ScheduleView({ days, entries, categories, onSelect }: Props) {
               </Typography>
             </Box>
             <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, flex: 1, minWidth: 0 }}>
-              {dayEntries.map((entry) => {
-                const start = new Date(entry.start);
-                const end = new Date(entry.end);
-                const color = (entry.categoryId && categories.get(entry.categoryId)?.appColor) || UNCATEGORISED_COLOR;
-                return (
-                  <li key={entry.id}>
-                    <ButtonBase
-                      onClick={() => onSelect(entry)}
-                      sx={{ width: '100%', justifyContent: 'flex-start', gap: 1.5, py: 0.75, px: 1, borderRadius: 1, textAlign: 'left' }}
-                    >
-                      <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
-                      <Typography variant="body2" sx={{ width: { xs: 120, sm: 150 }, flexShrink: 0, color: 'text.secondary' }}>
-                        {formatTimeRange(start, end)}
-                      </Typography>
-                      <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
-                        {entry.title}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
-                        {formatDuration(start, end)}
-                      </Typography>
-                    </ButtonBase>
-                  </li>
-                );
-              })}
+              {dayEntries.map((entry) => (
+                <ScheduleItem
+                  key={entry.id}
+                  entry={entry}
+                  color={(entry.categoryId && categories.get(entry.categoryId)?.appColor) || UNCATEGORISED_COLOR}
+                  onSelect={onSelect}
+                  onOpenMenu={onOpenMenu}
+                />
+              ))}
             </Box>
           </Box>
         );
       })}
     </Box>
+  );
+}
+
+type ItemProps = { entry: TimeEntry; color: string; onSelect: (entry: TimeEntry) => void; onOpenMenu: OpenEntryMenu };
+
+function ScheduleItem({ entry, color, onSelect, onOpenMenu }: ItemProps) {
+  const start = new Date(entry.start);
+  const end = new Date(entry.end);
+  const longPress = useLongPress((position) => onOpenMenu(entry, position));
+  return (
+    <li>
+      <ButtonBase
+        {...longPress.handlers}
+        onClick={() => !longPress.wasLongPress() && onSelect(entry)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          if (!longPress.wasLongPress()) onOpenMenu(entry, contextMenuPosition(event));
+        }}
+        sx={{
+          width: '100%',
+          justifyContent: 'flex-start',
+          gap: 1.5,
+          py: 0.75,
+          px: 1,
+          borderRadius: 1,
+          textAlign: 'left',
+          userSelect: 'none',
+          WebkitTouchCallout: 'none',
+        }}
+      >
+        <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
+        <Typography variant="body2" sx={{ width: { xs: 120, sm: 150 }, flexShrink: 0, color: 'text.secondary' }}>
+          {formatTimeRange(start, end)}
+        </Typography>
+        <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+          {entry.title}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+          {formatDuration(start, end)}
+        </Typography>
+      </ButtonBase>
+    </li>
   );
 }

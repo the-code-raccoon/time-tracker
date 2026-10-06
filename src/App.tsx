@@ -4,6 +4,8 @@ import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@ta
 import { useEffect, useState } from 'react';
 import { ApiError, getSession, logout } from './api';
 import { AppShell } from './components/AppShell';
+import { useRoute } from './hooks/useRoute';
+import { CategoriesPage } from './pages/CategoriesPage';
 import { LoginPage } from './pages/LoginPage';
 
 type AuthState = 'checking' | 'signed-out' | 'signed-in';
@@ -12,6 +14,7 @@ const isUnauthorized = (error: unknown) => error instanceof ApiError && error.st
 
 export function App() {
   const [auth, setAuth] = useState<AuthState>('checking');
+  const [route, navigate] = useRoute();
   const [queryClient] = useState(() => {
     // An expired session on any request sends you back to the login page.
     const onError = (error: unknown) => {
@@ -51,7 +54,11 @@ export function App() {
   if (auth === 'signed-out') return <LoginPage onLoggedIn={() => setAuth('signed-in')} />;
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell onLogout={handleLogout} />
+      {/* The calendar stays mounted (hidden) so its date and view survive a visit to Categories. */}
+      <Box sx={{ display: route === 'calendar' ? 'block' : 'none' }}>
+        <AppShell onOpenSettings={() => navigate('categories')} onLogout={handleLogout} />
+      </Box>
+      {route === 'categories' && <CategoriesPage onBack={() => navigate('calendar')} />}
     </QueryClientProvider>
   );
 }

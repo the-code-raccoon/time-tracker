@@ -8,6 +8,7 @@ import { UNCATEGORISED_COLOR } from '../../lib/color';
 import { layoutDay } from '../../lib/layout';
 import { useNow } from '../../hooks/useNow';
 import { EntryBlock } from './EntryBlock';
+import type { OpenEntryMenu } from './entryMenu';
 
 export const HOUR_HEIGHT = 48;
 const PX_PER_MINUTE = HOUR_HEIGHT / 60;
@@ -20,10 +21,11 @@ type Props = {
   categories: Map<string, Category>;
   onCreateAt: (start: Date) => void;
   onSelect: (entry: TimeEntry) => void;
+  onOpenMenu: OpenEntryMenu;
   onDayClick: (day: Date) => void;
 };
 
-export function TimeGrid({ days, entries, categories, onCreateAt, onSelect, onDayClick }: Props) {
+export function TimeGrid({ days, entries, categories, onCreateAt, onSelect, onOpenMenu, onDayClick }: Props) {
   const now = useNow();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -115,6 +117,7 @@ export function TimeGrid({ days, entries, categories, onCreateAt, onSelect, onDa
                   color={(block.item.categoryId && categories.get(block.item.categoryId)?.appColor) || UNCATEGORISED_COLOR}
                   pxPerMinute={PX_PER_MINUTE}
                   onSelect={onSelect}
+                  onOpenMenu={onOpenMenu}
                 />
               ))}
               {isSameDay(day, now) && (

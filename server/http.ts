@@ -43,6 +43,9 @@ export function authed(handler: (request: Request) => Promise<Response>) {
       return await handler(request);
     } catch (error) {
       if (error instanceof HttpError) return json({ error: error.message }, { status: error.status });
+      const code = (error as { code?: string }).code;
+      if (code === '23505') return json({ error: 'That name is already taken' }, { status: 409 });
+      if (code === '23503') return json({ error: 'Referenced record not found' }, { status: 400 });
       throw error;
     }
   };
