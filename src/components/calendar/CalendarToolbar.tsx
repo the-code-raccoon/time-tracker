@@ -8,6 +8,7 @@ import Search from '@mui/icons-material/Search';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import Sync from '@mui/icons-material/Sync';
 import Badge from '@mui/material/Badge';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -18,7 +19,7 @@ import Toolbar from '@mui/material/Toolbar';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { useState, type ReactNode } from 'react';
-import { VIEW_LABELS, type ViewMode } from '../../lib/dates';
+import { VIEW_KEYS, VIEW_LABELS, type ViewMode } from '../../lib/dates';
 
 type Props = {
   title: string;
@@ -76,12 +77,20 @@ export function CalendarToolbar({ title, view, compact, onViewChange, onToday, o
         size="small"
         value={view}
         onChange={(event) => onViewChange(event.target.value as ViewMode)}
-        slotProps={{ htmlInput: { 'aria-label': 'View' } }}
+        slotProps={{ htmlInput: { 'aria-label': 'View' }, select: { renderValue: (value) => VIEW_LABELS[value as ViewMode] } }}
         sx={{ minWidth: compact ? 104 : 120, flexShrink: 0 }}
       >
         {(Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => (
-          <MenuItem key={mode} value={mode}>
-            {VIEW_LABELS[mode]}
+          <MenuItem key={mode} value={mode} aria-keyshortcuts={compact ? undefined : VIEW_KEYS[mode].join(' ')} sx={{ gap: 3 }}>
+            <Box component="span" sx={{ flexGrow: 1 }}>
+              {VIEW_LABELS[mode]}
+            </Box>
+            {/* Shortcuts are desktop only (§5.7). Hidden from the option's name; aria-keyshortcuts announces them. */}
+            {!compact && (
+              <Typography component="kbd" aria-hidden variant="body2" color="text.secondary" sx={{ fontFamily: 'inherit', textTransform: 'uppercase' }}>
+                {VIEW_KEYS[mode][0]}
+              </Typography>
+            )}
           </MenuItem>
         ))}
       </TextField>

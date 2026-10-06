@@ -101,7 +101,7 @@ There is one user, the owner, who uses the app from:
 | TE-1a | Title field autocompletes from past titles (case-insensitive), and a picked suggestion also fills in that title's usual category.                                                                     |
 | TE-1b | Times can be set to any 5-minute increment. Date and time entry follows §5.2b. |
 | TE-1c | Overlapping entries are allowed and shown side by side, like Google Calendar. Entries may cross midnight.                                                                                             |
-| TE-2  | Views: **Day**, **Week**, **Month** and **Schedule/Agenda**, laid out like Google Calendar.                                                                                                           |
+| TE-2  | Views: **Day**, **2 days**, **Week**, **Month** and **Schedule/Agenda**, laid out like Google Calendar. 2 days shows the previous day and the current date on the time grid (so today and yesterday after pressing Today), and moves two days at a time. On desktop, the view dropdown shows each view's shortcut key (§5.7) next to its name. |
 | TE-3  | Create an entry by dragging across empty grid space (see §5.2d). Clicking an empty slot still creates a 30-minute entry there. |
 | TE-4  | Move or resize an entry by dragging (see §5.2d). |
 | TE-5  | A start/stop timer for the activity happening now; stopping it creates an entry. The running timer is **stored server-side**, so a timer started on the phone can be seen and stopped on the desktop. |
@@ -160,12 +160,12 @@ The date and time controls in the entry editor copy Google Calendar's:
 
 ### 5.2d Drag and drop in the calendar (same as Google Calendar)
 
-Applies to the Day and Week time grids. The Schedule list has no dragging.
+Applies to the Day, 2-day and Week time grids. The Schedule list has no dragging.
 
 | ID | Requirement |
 |---|---|
 | DRAG-1 | **Move:** dragging an entry moves it in **15-minute steps from its own time**, keeping its duration: 9:40 → 9:55 → 10:10, so the 5-minute precision of existing entries is kept (it does not snap to the quarter-hour grid). While dragging, a preview block shows the new position with its time range (e.g. `9:55 – 10:25am`), and the original is dimmed. Resizing (DRAG-3) likewise moves the end in 15-minute steps from its current time. |
-| DRAG-2 | **Move across days:** in Week view, dragging sideways moves the entry to another day, keeping its time of day. |
+| DRAG-2 | **Move across days:** in 2-day and Week views, dragging sideways moves the entry to another day, keeping its time of day. |
 | DRAG-3 | **Resize:** dragging an entry's bottom edge changes its end in 15-minute steps (the cursor changes to a resize cursor over the edge). The end can't go earlier than 5 minutes after the start, so 5-minute entries can still be resized. |
 | DRAG-4 | **Create:** dragging down across empty grid space selects a range in 15-minute steps, then opens the editor with that start and end. |
 | DRAG-5 | **Saving:** dropping saves straight away (no editor) and shows an "Entry moved" / "Entry resized" snackbar with **Undo**. If the save fails, the entry goes back and the error is shown. |
@@ -235,7 +235,7 @@ These are desktop only. They are turned off while a text input has focus. Source
 | `d` / `1`              | Day view                            |
 | `w` / `2`              | Week view                           |
 | `m` / `3`              | Month view                          |
-| `x` / `4`              | Custom view _(optional)_            |
+| `x` / `4`              | 2-day view (Google Calendar's custom-view key) |
 | `a` / `5`              | Schedule/Agenda view                |
 | `c`                    | Create entry                        |
 | `e`                    | Open details of the selected entry  |
@@ -318,7 +318,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 - **Drag and drop:** a drop updates the cached entry straight away and saves in the background; a failed save puts it back. Touch drags block scrolling only once the long press has fired.
 - **Month view:** each day lists as many entries as fit, then "N more", which opens the day's full list. An entry crossing midnight is listed on both days.
 - **Phones:** the timer is a floating button above Create; Search, Settings and Sign out are in the toolbar's ⋮ menu.
-- **Not done:** the optional custom view (`x` / `4`).
+- **Not done:** the optional custom view (`x` / `4`). _(Since replaced by the 2-day view, TE-2.)_
 
 ### Implementation notes (M5)
 
@@ -436,3 +436,4 @@ _None right now._
 | 2026-10-06 | Added TE-8 (the new-entry editor shows the last entry, with a button to start from it; `GET /api/entries?before=`). |
 | 2026-10-06 | Added CTX-6 (Duplicate to next day in the entry menu). |
 | 2026-10-06 | Added CTX-7 (Move after previous entry in the entry menu). |
+| 2026-10-06 | TE-2: added a 2-day view (`x` / `4`, in place of Google Calendar's custom view) showing the previous and current day; the view dropdown shows each view's shortcut. |

@@ -42,6 +42,10 @@ describe('keyboard shortcuts (§5.7)', () => {
     expect(screen.getByRole('combobox', { name: 'View' })).toHaveTextContent('Schedule');
     await user.keyboard('w');
     expect(screen.getByRole('combobox', { name: 'View' })).toHaveTextContent('Week');
+    await user.keyboard('x');
+    expect(screen.getByRole('combobox', { name: 'View' })).toHaveTextContent('2 days');
+    await user.keyboard('4');
+    expect(screen.getByRole('combobox', { name: 'View' })).toHaveTextContent('2 days');
   });
 
   it('is off while typing, inside dialogs and with modifiers', async () => {

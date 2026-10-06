@@ -1,15 +1,25 @@
 import { addDays, addMonths, endOfMonth, endOfWeek, format, isSameMonth, isSameYear, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
 
-export type ViewMode = 'day' | 'week' | 'month' | 'schedule';
+export type ViewMode = 'day' | 'two-day' | 'week' | 'month' | 'schedule';
 
-export const VIEW_LABELS: Record<ViewMode, string> = { day: 'Day', week: 'Week', month: 'Month', schedule: 'Schedule' };
+export const VIEW_LABELS: Record<ViewMode, string> = { day: 'Day', 'two-day': '2 days', week: 'Week', month: 'Month', schedule: 'Schedule' };
+
+/** §5.7: the letter and number key that switch to each view (Google Calendar's; `x` / `4` is its custom view). */
+export const VIEW_KEYS: Record<ViewMode, [letter: string, digit: string]> = {
+  day: ['d', '1'],
+  'two-day': ['x', '4'],
+  week: ['w', '2'],
+  month: ['m', '3'],
+  schedule: ['a', '5'],
+};
 
 const SCHEDULE_DAYS = 14;
-const SPAN: Record<Exclude<ViewMode, 'month'>, number> = { day: 1, week: 7, schedule: SCHEDULE_DAYS };
+const SPAN: Record<Exclude<ViewMode, 'month'>, number> = { day: 1, 'two-day': 2, week: 7, schedule: SCHEDULE_DAYS };
 
 /**
  * Visible [start, end) range for a view, in local time. Weeks start on Sunday, like Google Calendar.
  * Month view shows whole weeks: from the Sunday on or before the 1st to the Saturday on or after the last day.
+ * 2-day view shows the day before the date and the date itself.
  */
 export function viewRange(view: ViewMode, date: Date): { start: Date; end: Date } {
   if (view === 'month') {
@@ -18,7 +28,8 @@ export function viewRange(view: ViewMode, date: Date): { start: Date; end: Date 
       end: addDays(startOfDay(endOfWeek(endOfMonth(date), { weekStartsOn: 0 })), 1),
     };
   }
-  const start = view === 'week' ? startOfWeek(date, { weekStartsOn: 0 }) : startOfDay(date);
+  const start =
+    view === 'week' ? startOfWeek(date, { weekStartsOn: 0 }) : view === 'two-day' ? addDays(startOfDay(date), -1) : startOfDay(date);
   return { start, end: addDays(start, SPAN[view]) };
 }
 

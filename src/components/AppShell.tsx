@@ -15,7 +15,7 @@ import { ApiError, fetchPreviousEntry } from '../api';
 import { useCategories, useEntries, useEntryMutations, useGoogleStatus, useSync, useTimerMutations, useTitles } from '../hooks/data';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { formatSyncSummary } from '../lib/sync';
-import { daysBetween, formatTime, rangeTitle, shiftDate, snapMinutes, viewRange, type ViewMode } from '../lib/dates';
+import { daysBetween, formatTime, rangeTitle, shiftDate, snapMinutes, VIEW_KEYS, viewRange, type ViewMode } from '../lib/dates';
 import { atWallMinutes, type Times } from '../lib/drag';
 import { minutesOfDay } from '../lib/parse';
 import { CalendarToolbar } from './calendar/CalendarToolbar';
@@ -229,14 +229,7 @@ export function AppShell({ onOpenSettings, onOpenReports = () => {}, onLogout, a
     n: () => setDate((d) => shiftDate(view, d, 1)),
     t: () => setDate(new Date()),
     g: () => setPanel('go-to-date'),
-    d: switchTo('day'),
-    1: switchTo('day'),
-    w: switchTo('week'),
-    2: switchTo('week'),
-    m: switchTo('month'),
-    3: switchTo('month'),
-    a: switchTo('schedule'),
-    5: switchTo('schedule'),
+    ...Object.fromEntries((Object.keys(VIEW_KEYS) as ViewMode[]).flatMap((mode) => VIEW_KEYS[mode].map((key) => [key, switchTo(mode)]))),
     c: () => openCreate(),
     e: () => {
       const entry = selectedEntry();

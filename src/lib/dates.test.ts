@@ -8,6 +8,10 @@ describe('viewRange', () => {
     expect(viewRange('day', d('2026-10-05T15:30'))).toEqual({ start: d('2026-10-05T00:00'), end: d('2026-10-06T00:00') });
   });
 
+  it('two-day covers the previous day and the date', () => {
+    expect(viewRange('two-day', d('2026-10-05T15:30'))).toEqual({ start: d('2026-10-04T00:00'), end: d('2026-10-06T00:00') });
+  });
+
   it('week starts on Sunday', () => {
     expect(viewRange('week', d('2026-10-07T12:00'))).toEqual({ start: d('2026-10-04T00:00'), end: d('2026-10-11T00:00') });
   });
@@ -30,6 +34,8 @@ describe('viewRange', () => {
 describe('shiftDate', () => {
   it.each([
     ['day', 1, '2026-10-06T09:00'],
+    ['two-day', 1, '2026-10-07T09:00'],
+    ['two-day', -1, '2026-10-03T09:00'],
     ['week', -1, '2026-09-28T09:00'],
     ['schedule', 1, '2026-10-19T09:00'],
     ['month', 1, '2026-11-05T09:00'],

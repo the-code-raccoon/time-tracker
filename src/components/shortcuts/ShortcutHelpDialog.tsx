@@ -3,6 +3,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
+import { VIEW_KEYS, VIEW_LABELS, type ViewMode } from '../../lib/dates';
 
 const SECTIONS: { title: string; shortcuts: [keys: string[], action: string][] }[] = [
   {
@@ -17,12 +18,7 @@ const SECTIONS: { title: string; shortcuts: [keys: string[], action: string][] }
   },
   {
     title: 'Views',
-    shortcuts: [
-      [['d', '1'], 'Day'],
-      [['w', '2'], 'Week'],
-      [['m', '3'], 'Month'],
-      [['a', '5'], 'Schedule'],
-    ],
+    shortcuts: (Object.keys(VIEW_LABELS) as ViewMode[]).map((mode) => [VIEW_KEYS[mode], VIEW_LABELS[mode]]),
   },
   {
     title: 'Entries',

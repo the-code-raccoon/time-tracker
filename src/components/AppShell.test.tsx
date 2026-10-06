@@ -382,6 +382,19 @@ describe('AppShell', () => {
     expect(screen.getByText('8 h')).toBeInTheDocument();
   });
 
+  it('shows each view\'s shortcut in the view menu', async () => {
+    const user = userEvent.setup();
+    mockApi();
+    renderWithProviders(<AppShell onOpenSettings={() => {}} onLogout={() => {}} />);
+
+    await user.click(screen.getByRole('combobox', { name: 'View' }));
+    const twoDays = screen.getByRole('option', { name: '2 days' });
+    expect(twoDays).toHaveTextContent('x');
+    expect(twoDays).toHaveAttribute('aria-keyshortcuts', 'x 4');
+    await user.click(twoDays);
+    expect(screen.getByRole('combobox', { name: 'View' })).toHaveTextContent(/^2 days$/);
+  });
+
   it('opens Reports from the toolbar', async () => {
     const user = userEvent.setup();
     const onOpenReports = vi.fn();
