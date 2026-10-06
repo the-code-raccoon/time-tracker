@@ -159,7 +159,7 @@ Applies to the Day and Week time grids. The Schedule list has no dragging.
 
 | ID | Requirement |
 |---|---|
-| DRAG-1 | **Move:** dragging an entry moves it in **15-minute steps**, keeping its duration. While dragging, a preview block shows the new position with its time range (e.g. `9:55 – 10:25am`), and the original is dimmed. |
+| DRAG-1 | **Move:** dragging an entry moves it in **15-minute steps from its own time**, keeping its duration: 9:40 → 9:55 → 10:10, so the 5-minute precision of existing entries is kept (it does not snap to the quarter-hour grid). While dragging, a preview block shows the new position with its time range (e.g. `9:55 – 10:25am`), and the original is dimmed. Resizing (DRAG-3) likewise moves the end in 15-minute steps from its current time. |
 | DRAG-2 | **Move across days:** in Week view, dragging sideways moves the entry to another day, keeping its time of day. |
 | DRAG-3 | **Resize:** dragging an entry's bottom edge changes its end in 15-minute steps (the cursor changes to a resize cursor over the edge). The end can't go earlier than 5 minutes after the start, so 5-minute entries can still be resized. |
 | DRAG-4 | **Create:** dragging down across empty grid space selects a range in 15-minute steps, then opens the editor with that start and end. |
@@ -361,6 +361,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 - **Timer** → stored server-side.
 - **First import** → full history, from 2026-04-13.
 - **End-time am/pm** → follow Google Calendar: inferred from the start time (DT-6).
+- **Drag steps** → 15-minute steps from the entry's own time, not snapped to the grid (DRAG-1). Drag and drop stays in M4.
 
 - **Write canonical titles back to GCal** → no; existing events are never renamed (NORM-6).
 - **Lavender / Banana** → `tiering` is Leisure; Banana is Exercise, and gym/cardio/exercise are one activity (NORM-7).
@@ -368,7 +369,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 
 ### Still open
 
-1. **Drag steps (DRAG-1):** should a dragged entry move in 15-minute steps *from its own time* (9:40 → 9:55 → 10:10), or snap onto the quarter-hour grid (9:40 → 9:45 → 10:00)? _Proposed: 15-minute steps from its own time, so the 5-minute precision of existing entries is kept._
+_None right now._
 
 ## Changelog
 
@@ -386,3 +387,4 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 | 2026-10-05 | M1b done: Google Calendar-style date/time editor, right-click/long-press entry menu with undo, Categories page. Added the `backups` table (migration 0003); category delete/merge and move-by-title take a backup first. |
 | 2026-10-05 | DT-2: the date picker's calendar marks today. |
 | 2026-10-05 | Added drag and drop in the calendar (§5.2d): move, move across days, resize and drag-to-create in 15-minute steps, with undo. |
+| 2026-10-05 | DRAG-1: drag moves in 15-minute steps from the entry's own time. |
