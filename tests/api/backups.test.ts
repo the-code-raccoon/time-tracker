@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { GET as getBackup, POST as restore } from '../../api/backups/[id].js';
-import { GET as listBackups } from '../../api/backups/index.js';
-import { POST as createEntry } from '../../api/entries/index.js';
-import { PATCH as patchEntry } from '../../api/entries/[id].js';
+import { GET as getBackup, POST as restore } from '../../server/routes/backups/[id].js';
+import { GET as listBackups } from '../../server/routes/backups/index.js';
+import { POST as createEntry } from '../../server/routes/entries/index.js';
+import { PATCH as patchEntry } from '../../server/routes/entries/[id].js';
 import { ensureDailyBackup } from '../../server/repositories/backups.js';
 import type { TestDb } from '../../server/testing/testDb.js';
 import type { BackupDetail, BackupSummary, TimeEntry } from '../../shared/types.js';

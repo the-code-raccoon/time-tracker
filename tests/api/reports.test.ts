@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { GET as listCategories } from '../../api/categories/index.js';
-import { DELETE as deleteEntry } from '../../api/entries/[id].js';
-import { POST as createEntry } from '../../api/entries/index.js';
-import { GET as report } from '../../api/reports/index.js';
+import { GET as listCategories } from '../../server/routes/categories/index.js';
+import { DELETE as deleteEntry } from '../../server/routes/entries/[id].js';
+import { POST as createEntry } from '../../server/routes/entries/index.js';
+import { GET as report } from '../../server/routes/reports/index.js';
 import { toCsv } from '../../server/repositories/reports.js';
 import type { TestDb } from '../../server/testing/testDb.js';
 import type { Category, Report, TimeEntry } from '../../shared/types.js';

@@ -1,6 +1,4 @@
-import { existsSync, readdirSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import path from 'node:path';
 import type { Plugin, ViteDevServer } from 'vite';
 
 type Handler = (request: Request) => Response | Promise<Response>;
@@ -35,44 +33,17 @@ async function sendWebResponse(res: ServerResponse, response: Response): Promise
   res.end(Buffer.from(await response.arrayBuffer()));
 }
 
-/** Resolves a URL path to a function file the way Vercel does: `x.ts`, `x/index.ts`, then a `[param].ts` sibling. */
-export function resolveRoute(root: string, pathname: string): string | undefined {
-  const apiRoot = path.join(root, 'api');
-  const base = path.join(root, pathname);
-  if (base !== apiRoot && !base.startsWith(apiRoot + path.sep)) return undefined;
-
-  for (const candidate of [`${base}.ts`, path.join(base, 'index.ts')]) {
-    if (existsSync(candidate)) return candidate;
-  }
-  const parent = path.dirname(base);
-  if (!existsSync(parent) || !parent.startsWith(apiRoot)) return undefined;
-  const dynamic = readdirSync(parent).find((file) => /^\[[^\]]+\]\.ts$/.test(file));
-  return dynamic ? path.join(parent, dynamic) : undefined;
-}
-
 async function handle(server: ViteDevServer, req: IncomingMessage, res: ServerResponse): Promise<boolean> {
-  const { pathname } = new URL(req.url ?? '/', 'http://localhost');
-  if (!pathname.startsWith('/api/')) return false;
+  if (!req.url?.startsWith('/api/')) return false;
 
-  const file = resolveRoute(server.config.root, pathname.replace(/\/+$/, ''));
-  if (!file) {
-    await sendWebResponse(res, Response.json({ error: 'Not found' }, { status: 404 }));
-    return true;
-  }
-
-  const module = (await server.ssrLoadModule(file)) as Record<string, unknown>;
-  const handler = module[req.method ?? 'GET'];
-  if (typeof handler !== 'function') {
-    await sendWebResponse(res, Response.json({ error: 'Method not allowed' }, { status: 405 }));
-    return true;
-  }
-
-  await sendWebResponse(res, await (handler as Handler)(await toWebRequest(req)));
+  // The same router as the deployed function (api/index.ts), loaded through Vite so edits apply without a restart.
+  const { dispatch } = (await server.ssrLoadModule('/server/router.ts')) as { dispatch: Handler };
+  await sendWebResponse(res, await dispatch(await toWebRequest(req)));
   return true;
 }
 
 /**
- * Serves `api/**\/*.ts` (Vercel functions with the Web `Request`/`Response` signature)
+ * Serves the API routes (server/routes, Web `Request`/`Response` handlers)
  * from the Vite dev server, so `yarn dev` works without the Vercel CLI.
  */
 export function apiDevServer(): Plugin {

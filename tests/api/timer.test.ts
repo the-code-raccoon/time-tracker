@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { GET as listCategories } from '../../api/categories/index.js';
-import { GET as listEntries } from '../../api/entries/index.js';
-import { DELETE as discardTimer, GET as getTimer, PATCH as patchTimer, POST as startTimer } from '../../api/timer/index.js';
-import { POST as stopTimer } from '../../api/timer/stop.js';
+import { GET as listCategories } from '../../server/routes/categories/index.js';
+import { GET as listEntries } from '../../server/routes/entries/index.js';
+import { DELETE as discardTimer, GET as getTimer, PATCH as patchTimer, POST as startTimer } from '../../server/routes/timer/index.js';
+import { POST as stopTimer } from '../../server/routes/timer/stop.js';
 import type { TestDb } from '../../server/testing/testDb.js';
 import type { Category, TimeEntry, Timer } from '../../shared/types.js';
 import { apiRequest, readJson, setupApi, teardownApi } from './helpers.js';

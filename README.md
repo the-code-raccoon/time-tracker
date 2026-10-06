@@ -51,18 +51,19 @@ Production builds are an installable PWA: Settings → Install app (Chrome/Edge/
 ## Project layout
 
 ```
-api/            Vercel functions — one file per route, exporting GET/POST/… (Web Request → Response)
-server/         Server-only code shared by the API routes (auth, database, repositories, validation)
+api/index.ts    The only Vercel function; vercel.json rewrites /api/* to it
+server/routes/  API route handlers — one file per route, exporting GET/POST/… (Web Request → Response)
+server/         Server-only code: the route table (router.ts), auth, database, repositories, validation
 shared/         Types and helpers used by both the API and the app
 db/migrations/  Plain SQL migrations, applied in name order
 src/            React app
-tests/          API route tests (kept out of api/, where every file becomes a function)
-vite-plugins/   Dev-only Vite plugin that serves api/ locally
+tests/          API route tests
+vite-plugins/   Dev-only Vite plugin that serves the API routes locally
 scripts/        CLI helpers
 docs/           Product requirements
 ```
 
-Server imports use explicit `.js` extensions (Node ESM), so they also resolve on Vercel.
+Server imports use explicit `.js` extensions (Node ESM), so they also resolve on Vercel. A new route goes in `server/routes/` and needs an entry in the table in `server/router.ts`. Vercel's Hobby plan allows at most 12 functions per deployment, so don't add files to `api/`.
 
 ## Deploying to Vercel
 

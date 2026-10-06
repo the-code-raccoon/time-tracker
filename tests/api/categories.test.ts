@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DELETE as deleteCategory, PATCH as patchCategory } from '../../api/categories/[id].js';
-import { GET as listCategories, POST as createCategory } from '../../api/categories/index.js';
-import { POST as reorder } from '../../api/categories/reorder.js';
-import { POST as createEntry } from '../../api/entries/index.js';
-import { POST as recategorize } from '../../api/entries/recategorize.js';
-import { POST as restore } from '../../api/entries/restore.js';
-import { DELETE as deleteEntry } from '../../api/entries/[id].js';
+import { DELETE as deleteCategory, PATCH as patchCategory } from '../../server/routes/categories/[id].js';
+import { GET as listCategories, POST as createCategory } from '../../server/routes/categories/index.js';
+import { POST as reorder } from '../../server/routes/categories/reorder.js';
+import { POST as createEntry } from '../../server/routes/entries/index.js';
+import { POST as recategorize } from '../../server/routes/entries/recategorize.js';
+import { POST as restore } from '../../server/routes/entries/restore.js';
+import { DELETE as deleteEntry } from '../../server/routes/entries/[id].js';
 import type { TestDb } from '../../server/testing/testDb.js';
 import type { Category, TimeEntry } from '../../shared/types.js';
 import { apiRequest, readJson, setupApi, teardownApi } from './helpers.js';

@@ -1,9 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { hashPassword } from '../../server/password.js';
 import { createSessionToken } from '../../server/session.js';
-import { getLimiter, POST as login } from '../../api/auth/login.js';
-import { POST as logout } from '../../api/auth/logout.js';
-import { GET as session } from '../../api/auth/session.js';
+import { getLimiter, POST as login } from '../../server/routes/auth/login.js';
+import { POST as logout } from '../../server/routes/auth/logout.js';
+import { GET as session } from '../../server/routes/auth/session.js';
 
 const PASSWORD = 'test password 123';
 const SECRET = 's'.repeat(32);
