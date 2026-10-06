@@ -5,3 +5,7 @@ credentials.json
 token.json
 .vercel/
 dist/
+coverage/
+*.log
+.DS_Store
+node_modules/.tmp/

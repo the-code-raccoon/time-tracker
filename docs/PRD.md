@@ -266,7 +266,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 | Google API      | `googleapis`, server-side OAuth 2.0 with a **web** client (`credentials.json` is already set up as a web client)                                                                                                                                                                                                                                                                                                                                                                           |
 | Database        | **PostgreSQL** hosted on Supabase (free tier), project `time-tracker` (`zunydbnypttnrcveflmi`, us-east-1). The app talks to it as plain Postgres using a standard driver (`postgres` / `pg`) and `DATABASE_URL`, through Supabase's transaction pooler (port 6543), which is meant for serverless. It does **not** use the Supabase JS client, auth or REST APIs, so the database is easy to move to any other Postgres host. Schema changes are plain SQL migrations in `db/migrations/`. |
 | Package manager | Yarn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| Testing | **Vitest** with React Testing Library and jsdom for components. API handlers and sync logic are tested in Vitest too, with Google Calendar mocked and Postgres either mocked or a throwaway test database. |
+| Testing | **Vitest** with React Testing Library and happy-dom for components. API handlers and sync logic are tested in Vitest too, with Google Calendar mocked and Postgres either mocked or a throwaway test database. |
 | Hosting         | Vercel (Hobby/free)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ### Environment variables
@@ -291,7 +291,7 @@ type SyncState = { syncToken?: string; lastSyncAt?: string };
 
 ## 10. Milestones
 
-1. **M0 — Scaffold:** Vite + React + TS + MUI dark theme, Yarn, Vitest suite, Vercel config, password login.
+1. ✅ **M0 — Scaffold:** Vite + React + TS + MUI dark theme, Yarn, Vitest suite, Vercel config, password login.
 2. **M1 — Entries:** CRUD with database persistence; Day, Week and Schedule views; responsive layout.
 3. **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
 4. **M3 — Push + conflict detection + Reconcile UI.**
@@ -326,3 +326,4 @@ _None right now._
 | 2026-10-05 | Answered open questions: separate app/GCal category colours, title normalisation and activities, 30-day backups, server-side timer, full-history import. Database → plain PostgreSQL (hosted on Supabase). Expanded §2.1 to cover all sampled months. |
 | 2026-10-05 | Resolved the last open questions: no renaming of existing GCal events, exercise aliases → Banana, `tiering` → Leisure, most recent colour wins. |
 | 2026-10-05 | Added Vitest test-suite requirement. |
+| 2026-10-05 | M0 done: scaffold, MUI dark theme, password login, Vitest. The login rate limit is in memory until Postgres arrives in M1. happy-dom replaces jsdom (current jsdom needs Node ≥ 22.19). |
