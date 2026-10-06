@@ -1,0 +1,321 @@
+# Time Tracker — Product Requirements Document
+
+> **Living document.** Update it as decisions are made. Each change gets a line in the [Changelog](#changelog).
+
+|                  |            |
+| ---------------- | ---------- |
+| **Owner**        | F.H        |
+| **Status**       | Draft      |
+| **Last updated** | 2026-10-05 |
+
+---
+
+## 1. Summary
+
+A personal, password-protected web app for tracking time. It replaces the current manual process of logging time blocks in a Google Calendar named **"Schedule"**. The app syncs with that calendar in both directions when asked, so either one can be the place where time is entered. When the two disagree, the app shows the differences and lets the user reconcile them.
+
+## 2. Background & current workflow
+
+Time is currently tracked by hand as events in the "schedule" Google Calendar:
+
+- Calendar ID: `ac0b86d4a2fc23d3508ea0b7b661d1e6453b82ee2570b304a1be204d16b48609@group.calendar.google.com`
+- Timezone: `America/Toronto`
+
+### 2.1 Observed conventions
+
+These come from reviewing about 1,230 events sampled across the calendar's history: 13–30 Apr, 1–19 Jun, 1–19 Aug and 7 Sep–5 Oct 2026. The first event is on **2026-04-13**. The full history is estimated at about 3,000 events.
+
+**Colour is the category.** Titles are free text. The colour (Google `colorId`) is what groups events:
+
+| `colorId` | GCal name        | Category (inferred)              | Example titles                                               |
+| --------- | ---------------- | -------------------------------- | ------------------------------------------------------------ |
+| 4         | Flamingo         | Wake up                          | `wake up`                                                    |
+| 10        | Basil            | Food                             | `make + eat breakfast`, `eat snack`, `eat dinner`            |
+| 6         | Tangerine        | Japanese study                   | `jp - srs`, `jp - new vocab`, `jp - listening`, `jp - tutor` |
+| 3         | Grape            | Content / creative               | `stream`, `storyboard`, `livestream thumbnail`, `make bgs`   |
+| 7         | Peacock          | Leisure                          | `chill`, `pjsk`, `read manga`, `journal`, `doomscroll`       |
+| 8         | Graphite         | Work                             | `work`                                                       |
+| 11        | Tomato           | Errands / outings                | `grocery shopping - metro`, `doctor`, `flea market`          |
+| 9         | Blueberry        | Health appointments              | `food psychotherapy`                                         |
+| 5 | Banana | Exercise | `cardio`, `gym`, `gym + cardio` (all aliases of **exercise**) |
+| 1 | Lavender | Leisure _(legacy colour)_ | `tiering` |
+| 2         | Sage             | _(one-off)_                      | `shower`                                                     |
+| _(none)_ | Calendar default | Self-care / logistics | `shower`, `put in contacts`, `unpack` |
+
+**Other patterns:**
+
+- **Colour meanings change over time.** For example, `shower` was Peacock in spring and has no colour now, and exercise used to be Banana. So an event's category comes from its own colour at import time, and the app lets you recategorise in bulk afterwards (CAT-5).
+- **Common activities** (all sampled months, after normalisation): `work` (298 h), `stream`, `gym`, `cardio`, `pjsk`, `chilling`/`chill`, `wanikani + kaniwani + marumori srs`, `read pjsk event stories`, `summarize pjsk event stories`, `wake up`, `shower`, `eat snack`, `make + eat breakfast/lunch/dinner`, `journal`. There were 351 distinct raw titles; basic text normalisation brings that to 321, and the alias merging in §5.4 should reduce it much further.
+
+- **Titles** are short and lowercase-ish but not consistent (`eat snack` vs `Eat snack`, `chill` vs `chilling`). Some use a `topic - detail` form (`jp - srs`). The same titles come up again and again, so autocomplete from past titles will save the most time.
+- **Granularity is 5 minutes.** Start times fall on any 5-minute mark. Durations run from 5 minutes to about 9 hours; most are 5–30 minutes.
+- **Overlaps are normal** (about 10% of events), e.g. `make + eat breakfast` during `work`. The app must allow and display overlapping entries.
+- **Events can cross midnight**, e.g. 17:50 → 02:30.
+- **No descriptions, locations, attendees or all-day events.** Only title, start, end and colour carry data.
+- Recurring events are essentially unused (1 instance).
+- Logged hours cover about 16–20 h/day on tracked days, with some days missing or sparse.
+
+## 3. Goals & non-goals
+
+### Goals
+
+1. Make logging time faster than entering it in Google Calendar by hand.
+2. Keep Google Calendar as an equal source of truth: entries can be made in either place.
+3. Show summaries of where time goes (by day, week or category).
+4. Work well on phone, tablet and desktop.
+
+### Non-goals
+
+- More than one user, teams, or sharing
+- Billing or invoicing
+- Automatic background sync (sync is **manual only**)
+- Native mobile apps (a PWA install is a possible extra)
+
+## 4. Users
+
+There is one user, the owner, who uses the app from:
+
+- **Desktop** (primary for review and editing; keyboard-heavy)
+- **Phone** (quick entry on the go)
+- **Tablet** (occasional)
+
+## 5. Functional requirements
+
+### 5.1 Authentication
+
+| ID     | Requirement                                                                                                                                        |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AUTH-1 | The whole app is behind a single password. There are no user accounts.                                                                             |
+| AUTH-2 | The password is stored as a hash in an environment variable, never in the repo.                                                                    |
+| AUTH-3 | Logging in sets an HttpOnly, Secure, SameSite=Strict session cookie that lasts about 30 days, so the user can stay logged in on their own devices. |
+| AUTH-4 | Every API route checks the session. Unauthenticated requests get a 401.                                                                            |
+| AUTH-5 | Failed logins are rate-limited (basic brute-force protection).                                                                                     |
+| AUTH-6 | Google OAuth is a separate, one-time connection. The refresh token is stored server-side, encrypted, and never sent to the browser.                |
+
+### 5.2 Time entries
+
+| ID    | Requirement                                                                                                                                                                                           |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TE-1  | Create, edit and delete time entries: title, start, end, category (= GCal colour), and optional notes.                                                                                                |
+| TE-1a | Title field autocompletes from past titles (case-insensitive), and a picked suggestion also fills in that title's usual category.                                                                     |
+| TE-1b | Time pickers snap to 5-minute increments.                                                                                                                                                             |
+| TE-1c | Overlapping entries are allowed and shown side by side, like Google Calendar. Entries may cross midnight.                                                                                             |
+| TE-2  | Views: **Day**, **Week**, **Month** and **Schedule/Agenda**, laid out like Google Calendar.                                                                                                           |
+| TE-3  | Create an entry by click-dragging on the grid (desktop) or tapping and holding (touch).                                                                                                               |
+| TE-4  | Move or resize an entry by dragging.                                                                                                                                                                  |
+| TE-5  | A start/stop timer for the activity happening now; stopping it creates an entry. The running timer is **stored server-side**, so a timer started on the phone can be seen and stopped on the desktop. |
+| TE-6  | Quick-add from a text input (e.g. `9-10:30 Deep work`). _(Nice to have)_                                                                                                                              |
+| TE-7  | All times are shown in `America/Toronto`, or the device timezone if that can be configured.                                                                                                           |
+
+### 5.2a Categories
+
+| ID    | Requirement                                                                                                                                                               |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CAT-1 | Each category has a **name**, an **app colour** (any colour, chosen freely) and a **GCal colour** (one of Google's 11 `colorId`s, or the calendar default).               |
+| CAT-2 | The app colour and the GCal colour are independent. For example, Leisure can be Peacock in Google Calendar but any colour you like in the app.                            |
+| CAT-3 | Changing a category's app colour applies **retroactively** to all of its entries straight away, because entries point to the category rather than storing a colour.       |
+| CAT-4 | Changing a category's GCal colour marks all of its linked entries for update. They are recoloured in Google Calendar on the next sync, with a backup taken first (BAK-1). |
+| CAT-5 | Categories can be created, renamed and merged. Entries can be moved between categories in bulk (e.g. "all `shower` entries → Self-care").                                 |
+| CAT-6 | Seeded from the table in §2.1.                                                                                                                                            |
+
+### 5.3 Google Calendar sync (manual, two-way)
+
+| ID      | Requirement                                                                                                                                                                                                                                                                                                       |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SYNC-1  | A **Sync** button starts a two-way sync with the "schedule" calendar. Nothing syncs automatically.                                                                                                                                                                                                                |
+| SYNC-2  | **Pull:** events created, changed or deleted in Google Calendar since the last sync are brought into the app.                                                                                                                                                                                                     |
+| SYNC-3  | **Push:** entries created, changed or deleted in the app since the last sync are written to Google Calendar as normal events, the same as if they had been entered by hand.                                                                                                                                       |
+| SYNC-4  | Each entry stores the Google event ID it is linked to, the event's `etag`/`updated` value, and a hash of its contents at the last sync.                                                                                                                                                                           |
+| SYNC-5  | **Conflict detection:** a three-way comparison of _last synced_ vs. _app now_ vs. _calendar now_. A conflict happens when both sides changed the same entry.                                                                                                                                                      |
+| SYNC-6  | Changes that don't conflict are applied automatically. Conflicts go to the **Reconcile** screen and are not applied.                                                                                                                                                                                              |
+| SYNC-7  | **Reconcile screen:** shows each conflict side by side (app vs. calendar), with field-level differences highlighted. The choices are _Keep app_, _Keep calendar_, _Edit and merge_, or for a delete-vs-edit conflict, _Delete_ or _Restore_. There are also bulk actions: _Keep all app_ and _Keep all calendar_. |
+| SYNC-8  | A sync summary appears afterwards: N pulled, N pushed, N conflicts.                                                                                                                                                                                                                                               |
+| SYNC-9  | Uses Google's incremental `syncToken` so only changes are fetched. Falls back to a full resync if the token is invalidated (410).                                                                                                                                                                                 |
+| SYNC-10 | First sync imports **the full history** of the calendar, starting from the earliest event (2026-04-13).                                                                                                                                                                                                           |
+| SYNC-11 | Recurring events in the calendar are expanded into separate entries (`singleEvents=true`). _(To confirm once real data has been reviewed.)_                                                                                                                                                                       |
+| SYNC-12 | Every event in the "Schedule" calendar is a time entry, including ones the app didn't create, and sync may edit or delete them. Backups (§5.5) make this safe.                                                                                                                                                    |
+
+### 5.4 Title normalisation & activities
+
+| ID     | Requirement                                                                                                                                                                                                                                                                        |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NORM-1 | Titles are normalised on import: lowercased, trimmed, repeated whitespace collapsed, and consistent spacing around `+`, `-` and `/` (`Make+eat lunch` → `make + eat lunch`).                                                                                                       |
+| NORM-2 | Normalised titles map to a canonical **activity** through an editable alias table, e.g. `chill` / `chilling` → `chill`; `eat` / `eating` → `eat`; `make + eat preworkout` / `make + eat pre workout` → `make + eat pre-workout`; `gym + cardio` / `cardio + gym` → `gym + cardio`. |
+| NORM-3 | A first-pass alias table is generated from the full import by grouping near-duplicates (same words in a different order, plurals, `-ing` forms, missing spaces). It is shown for review before it is applied.                                                                      |
+| NORM-4 | The original title is always kept (`rawTitle`) so the normalisation can be undone.                                                                                                                                                                                                 |
+| NORM-5 | Reports, search and autocomplete use the canonical activity.                                                                                                                                                                                                                       |
+| NORM-6 | Canonical titles are **never written back** to existing Google Calendar events: normalisation happens only in the app. Entries *created in the app* are pushed with their canonical title. |
+| NORM-7 | `gym`, `cardio`, `exercise`, `gym + cardio` and `cardio + gym` are aliases of the activity **exercise** (category Exercise, GCal Banana). |
+| NORM-8 | When one activity appears with several colours over time, its category comes from the colour of its **most recent** entry (e.g. `shower` → Self-care, `tiering` → Leisure). Older events keep their colour in Google Calendar; only the app recategorises them. |
+
+### 5.5 Backups
+
+| ID    | Requirement                                                                                                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| BAK-1 | Before any sync writes to Google Calendar, the app saves a snapshot of every event it is about to change or delete (full event JSON) and of the matching app entries.                                         |
+| BAK-2 | A full snapshot of the calendar (all events) and of the app database is also taken **once a day**, the first time the app is used that day (there are no paid cron jobs).                                     |
+| BAK-3 | Backups are kept for **30 days**, then deleted automatically.                                                                                                                                                 |
+| BAK-4 | A **Backups** screen lists snapshots (time, trigger, number of events). It can show what a snapshot contains and restore it, either all of it or selected events, to the app, to Google Calendar, or to both. |
+| BAK-5 | Backups are stored in Postgres (JSONB).                                                                                                                                                                       |
+
+### 5.6 Reporting
+
+| ID    | Requirement                                                            |
+| ----- | ---------------------------------------------------------------------- |
+| REP-1 | Total time per category for a chosen range (day, week, month, custom). |
+| REP-2 | A simple chart: a stacked bar of hours per day by category.            |
+| REP-3 | CSV export. _(Nice to have)_                                           |
+
+### 5.7 Keyboard shortcuts (same as Google Calendar)
+
+These are desktop only. They are turned off while a text input has focus. Source: [Google Calendar keyboard shortcuts](https://support.google.com/calendar/answer/37034).
+
+| Key                    | Action                              |
+| ---------------------- | ----------------------------------- |
+| `k` / `p`              | Previous date range                 |
+| `j` / `n`              | Next date range                     |
+| `t`                    | Go to today                         |
+| `g`                    | Go to a date                        |
+| `d` / `1`              | Day view                            |
+| `w` / `2`              | Week view                           |
+| `m` / `3`              | Month view                          |
+| `x` / `4`              | Custom view _(optional)_            |
+| `a` / `5`              | Schedule/Agenda view                |
+| `c`                    | Create entry                        |
+| `e`                    | Open details of the selected entry  |
+| `Backspace` / `Delete` | Delete the selected entry           |
+| `z`                    | Undo                                |
+| `Ctrl/⌘ + s`           | Save (in the editor)                |
+| `Esc`                  | Close the dialog or go back         |
+| `/`                    | Search                              |
+| `r`                    | Refresh (in this app: **run sync**) |
+| `s`                    | Settings                            |
+| `?`                    | Show the shortcut help dialog       |
+
+## 6. Data model (draft)
+
+```ts
+type TimeEntry = {
+  id: string; // app UUID
+  title: string; // canonical / normalised title
+  rawTitle?: string; // exactly as it was in GCal on import
+  activityId?: string;
+  start: string; // ISO 8601 with offset
+  end: string;
+  categoryId?: string;
+  notes?: string;
+  // sync metadata
+  gcalEventId?: string;
+  gcalEtag?: string;
+  lastSyncedHash?: string; // hash of {title,start,end,category,notes} at last sync
+  deletedAt?: string; // soft delete so deletions can be pushed
+  updatedAt: string;
+};
+
+// One category per GCal colorId ('1'–'11'), plus null for the calendar's default colour.
+// Names can be edited in the app; colorId is what syncs.
+type Category = {
+  id: string;
+  name: string;
+  appColor: string; // any hex colour; changing it recolours all entries (CAT-3)
+  gcalColorId: string | null; // '1'–'11' or null = calendar default
+};
+
+type Activity = { id: string; name: string; categoryId?: string }; // canonical activity
+type ActivityAlias = { normalizedTitle: string; activityId: string };
+
+// single row, server-side
+type Timer = {
+  activityId?: string;
+  title: string;
+  categoryId?: string;
+  startedAt: string;
+} | null;
+
+type Backup = {
+  id: string;
+  createdAt: string; // deleted after 30 days
+  trigger: "pre-sync" | "daily" | "manual";
+  events: unknown[]; // GCal event JSON
+  entries: TimeEntry[];
+};
+
+type SyncState = { syncToken?: string; lastSyncAt?: string };
+```
+
+## 7. Non-functional requirements
+
+| ID    | Requirement                                                                                                                                        |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NFR-1 | **Responsive:** works from 360 px phones up to large desktops. On mobile the default is Day/Schedule view, with a bottom FAB for create and timer. |
+| NFR-2 | **Dark mode only** (MUI dark theme, colours close to Google Calendar's dark theme).                                                                |
+| NFR-3 | **Cost:** runs on free tiers only (Vercel Hobby plus Supabase Free. Note: Supabase pauses free projects after 7 days of inactivity).               |
+| NFR-4 | **Performance:** first load under 2 s on 4G. Views switch instantly because data is cached on the client.                                          |
+| NFR-5 | **Accessibility:** keyboard navigable, visible focus, and AA contrast in dark mode.                                                                |
+| NFR-6 | **Security:** secrets only in Vercel env vars. `credentials.json` and `token.json` are git-ignored.                                                |
+
+## 8. Technical approach
+
+| Area            | Choice                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Language        | TypeScript                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Frontend        | React + Vite (SPA)                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| UI              | [MUI](https://mui.com/) (Material, close to Google Calendar's look), dark theme                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Calendar grid   | To decide: build on MUI, or a library such as FullCalendar or react-big-calendar styled with the MUI theme                                                                                                                                                                                                                                                                                                                                                                                 |
+| Backend         | Vercel Serverless Functions (`/api/*`) in TypeScript                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Google API      | `googleapis`, server-side OAuth 2.0 with a **web** client (`credentials.json` is already set up as a web client)                                                                                                                                                                                                                                                                                                                                                                           |
+| Database        | **PostgreSQL** hosted on Supabase (free tier), project `time-tracker` (`zunydbnypttnrcveflmi`, us-east-1). The app talks to it as plain Postgres using a standard driver (`postgres` / `pg`) and `DATABASE_URL`, through Supabase's transaction pooler (port 6543), which is meant for serverless. It does **not** use the Supabase JS client, auth or REST APIs, so the database is easy to move to any other Postgres host. Schema changes are plain SQL migrations in `db/migrations/`. |
+| Package manager | Yarn                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Hosting         | Vercel (Hobby/free)                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+### Environment variables
+
+`APP_PASSWORD_HASH`, `SESSION_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_CALENDAR_ID`, `TOKEN_ENCRYPTION_KEY`, `DATABASE_URL`
+
+### Google OAuth setup notes
+
+- Authorised redirect URIs must include both `http://localhost:<port>/api/auth/google/callback` and `https://<app>.vercel.app/api/auth/google/callback`.
+- The consent screen should be **In production**. In Testing mode, refresh tokens expire after 7 days.
+- Scope: `https://www.googleapis.com/auth/calendar.events`.
+
+## 9. Development conventions
+
+- **Commits** follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/): `<type>(<scope>)?: <description>`. Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Breaking changes use `!` or a `BREAKING CHANGE:` footer. Suggested scopes: `auth`, `sync`, `calendar`, `entries`, `reports`, `shortcuts`, `db`, `ui`.
+- **Package manager:** Yarn only (no `package-lock.json`).
+
+## 10. Milestones
+
+1. **M0 — Scaffold:** Vite + React + TS + MUI dark theme, Yarn, Vercel config, password login.
+2. **M1 — Entries:** CRUD with database persistence; Day, Week and Schedule views; responsive layout.
+3. **M2 — Google connect + pull:** OAuth flow, import from the "schedule" calendar.
+4. **M3 — Push + conflict detection + Reconcile UI.**
+5. **M4 — Keyboard shortcuts**, Month view, timer.
+6. **M5 — Reporting**, CSV export, PWA install.
+
+## 11. Open questions
+
+### Resolved
+
+- **Database** → PostgreSQL, hosted on Supabase.
+- **Categories** → GCal colours, with the inferred names confirmed. The app colour can be changed independently and applies retroactively (§5.2a).
+- **Normalisation** → yes, on import, with an alias table that maps titles to canonical activities (§5.4).
+- **Touching events the app didn't create** → yes, with 30-day backups (§5.5).
+- **Timer** → stored server-side.
+- **First import** → full history, from 2026-04-13.
+
+- **Write canonical titles back to GCal** → no; existing events are never renamed (NORM-6).
+- **Lavender / Banana** → `tiering` is Leisure; Banana is Exercise, and gym/cardio/exercise are one activity (NORM-7).
+- **Activities with several colours** (e.g. `shower`) → the most recent entry's colour wins (NORM-8).
+
+### Still open
+
+_None right now._
+
+## Changelog
+
+| Date       | Change                                                                                                                                                                                                                                                |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-05 | Initial draft.                                                                                                                                                                                                                                        |
+| 2026-10-05 | Filled in §2.1 from a review of the calendar; categories = GCal colours; added autocomplete, 5-min snapping and overlap requirements; database → Supabase; added Conventional Commits.                                                                |
+| 2026-10-05 | Answered open questions: separate app/GCal category colours, title normalisation and activities, 30-day backups, server-side timer, full-history import. Database → plain PostgreSQL (hosted on Supabase). Expanded §2.1 to cover all sampled months. |
+| 2026-10-05 | Resolved the last open questions: no renaming of existing GCal events, exercise aliases → Banana, `tiering` → Leisure, most recent colour wins. |
