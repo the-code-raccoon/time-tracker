@@ -37,7 +37,7 @@ type TimeFieldProps = {
   value: Date;
   onChange: (minutes: number) => void;
   ariaLabel: string;
-  /** am/pm inference reference, in minutes after midnight (DT-6). */
+  /** The current time of day, in minutes after midnight; sets am/pm for times typed without it (DT-6). */
   referenceMinutes: number;
   error?: boolean;
 };

@@ -79,7 +79,7 @@ describe('timer (TE-5)', () => {
     const dialog = screen.getByRole('dialog', { name: 'Timer' });
     const startedAt = within(dialog).getByLabelText('Started at');
     await user.clear(startedAt);
-    await user.type(startedAt, '10:30{Enter}'); // at noon, "10:30" is this morning
+    await user.type(startedAt, '10:30am{Enter}');
     await user.click(within(dialog).getByRole('button', { name: 'Stop' }));
 
     await waitFor(() => expect(requestsTo(fetchMock, 'POST', '/api/timer/stop')).toHaveLength(1));

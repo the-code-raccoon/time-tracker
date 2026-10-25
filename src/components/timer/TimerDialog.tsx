@@ -30,7 +30,6 @@ type Props = {
 
 /**
  * A typed start time is the most recent such time: later than now means yesterday.
- * Typing "9:30" at 3pm means 9:30am (the am/pm reference is 12 hours back).
  */
 function pastTime(minutes: number, now: Date): Date {
   const today = atWallMinutes(now, minutes);
@@ -123,7 +122,7 @@ export function TimerDialog({ timer, categories, titles, onStart, onSave, onStop
               <TimeField
                 ariaLabel="Started at"
                 value={startedAt}
-                referenceMinutes={minutesOfDay(now) - 12 * 60}
+                referenceMinutes={minutesOfDay(now)}
                 onChange={(minutes) => setStartedAt(pastTime(minutes, now))}
               />
               <Typography variant="caption" color="text.secondary">

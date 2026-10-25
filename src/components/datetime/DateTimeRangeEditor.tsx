@@ -1,6 +1,5 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import { isSameDay } from 'date-fns';
 import { useNow } from '../../hooks/useNow';
 import { timeZoneLabel } from '../../lib/timezone';
 import { minutesOfDay } from '../../lib/parse';
@@ -45,7 +44,7 @@ export function DateTimeRangeEditor({ range, onChange }: Props) {
             start={start}
             end={end}
             error={invalid}
-            referenceMinutes={isSameDay(start, end) ? minutesOfDay(start) : 0}
+            referenceMinutes={minutesOfDay(now)}
             onChangeTime={(minutes) => onChange(setEndTime(range, minutes))}
             onChangeDuration={(minutes) => onChange(setDuration(range, minutes))}
           />

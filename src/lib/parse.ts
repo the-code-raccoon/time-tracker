@@ -56,7 +56,7 @@ export const MINUTES_PER_DAY = 24 * 60;
 
 /**
  * DT-5/DT-6: parses a typed time such as "9:30", "930", "9", "9:30p", "9.30 pm" or "21:30" into minutes after midnight.
- * A 12-hour time without am/pm becomes the first match at or after `referenceMinutes`; if both have passed, pm.
+ * A 12-hour time without am/pm takes the am/pm of `referenceMinutes` (the current time of day).
  * Times from 13:00, `0:xx` and times with a leading zero ("09:30") are 24-hour times.
  */
 export function parseTimeInput(text: string, referenceMinutes: number): number | null {
@@ -82,8 +82,7 @@ export function parseTimeInput(text: string, referenceMinutes: number): number |
   if (hour >= 13 || hour === 0 || digits.startsWith('0')) return hour * 60 + minute;
 
   const am = (hour % 12) * 60 + minute;
-  const pm = am + 12 * 60;
-  return am >= referenceMinutes ? am : pm;
+  return referenceMinutes >= 12 * 60 ? am + 12 * 60 : am;
 }
 
 export const minutesOfDay = (date: Date) => date.getHours() * 60 + date.getMinutes();

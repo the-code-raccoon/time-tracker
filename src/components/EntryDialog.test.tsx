@@ -62,17 +62,16 @@ describe('EntryDialog', () => {
     expect(field('End time')).toHaveValue('10:10am');
   });
 
-  it('infers pm for a start time that has passed today (DT-6)', async () => {
+  it('infers pm for a start time typed in the afternoon (DT-6)', async () => {
     const { user } = setup();
     await typeInto(user, 'Start time', '9:30');
     expect(field('Start time')).toHaveValue('9:30pm');
   });
 
-  it('infers the end time from the start time (DT-6)', async () => {
+  it('infers pm for an end time typed in the afternoon (DT-6)', async () => {
     const { user } = setup();
     await typeInto(user, 'End time', '11');
-    expect(field('End time')).toHaveValue('11:00am');
-    expect(field('Duration')).toHaveValue('1 h 30 min');
+    expect(field('End time')).toHaveValue('11:00pm');
   });
 
   it('parses typed dates and defaults to the current year (DT-3)', async () => {
@@ -139,7 +138,7 @@ describe('EntryDialog', () => {
     const { user, onSubmit, onClose } = setup();
     await user.type(screen.getByRole('combobox', { name: 'Title' }), 'journal');
     await user.clear(field('End time'));
-    await user.type(field('End time'), '10:15');
+    await user.type(field('End time'), '10:15am');
     await user.keyboard('{Control>}s{/Control}');
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith(

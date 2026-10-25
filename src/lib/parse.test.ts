@@ -37,11 +37,14 @@ describe('parseTimeInput (DT-5, DT-6)', () => {
   const at = (hour: number, minute = 0) => hour * 60 + minute;
 
   it.each([
-    ['9:30', at(15), at(21, 30)], // 3pm: 9:30am has passed → 9:30pm
+    ['9:30', at(15), at(21, 30)], // pm now → pm
     ['4', at(15), at(16)],
-    ['9:30', at(8), at(9, 30)], // 8am: 9:30am is next
-    ['9:30', at(23), at(21, 30)], // both passed → pm
-    ['12', at(15), at(12)], // 12am and 12pm passed → 12pm
+    ['9:30', at(8), at(9, 30)], // am now → am
+    ['11', at(8), at(11)],
+    ['1', at(11, 59), at(1)], // still am → 1am
+    ['11', at(12), at(23)], // noon is pm → 11pm
+    ['12', at(15), at(12)],
+    ['12', at(8), at(0)],
     ['12:15', at(0), at(0, 15)],
     ['930', at(15), at(21, 30)],
     ['1030', at(8), at(10, 30)],
@@ -58,11 +61,6 @@ describe('parseTimeInput (DT-5, DT-6)', () => {
     ['0930', at(15), at(9, 30)],
   ])('%j with reference %i → %i', (input, reference, expected) => {
     expect(parseTimeInput(input, reference)).toBe(expected);
-  });
-
-  it('infers the end time from the start time, like Google Calendar', () => {
-    expect(parseTimeInput('10', at(9, 30))).toBe(at(10));
-    expect(parseTimeInput('9', at(9, 30))).toBe(at(21));
   });
 
   it.each(['', 'abc', '25', '9:60', '13pm', '0am', '12345', '9:3'])('rejects %j', (input) => {
