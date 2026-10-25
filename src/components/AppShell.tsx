@@ -1,9 +1,11 @@
 import Add from '@mui/icons-material/Add';
+import Close from '@mui/icons-material/Close';
 import Alert from '@mui/material/Alert';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Fab from '@mui/material/Fab';
+import IconButton from '@mui/material/IconButton';
 import LinearProgress from '@mui/material/LinearProgress';
 import Snackbar from '@mui/material/Snackbar';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -390,6 +392,8 @@ export function AppShell({ onOpenSettings, onOpenReports = () => {}, onLogout, a
         open={!!notice}
         autoHideDuration={notice?.undo || notice?.action ? 6000 : 4000}
         onClose={(_, reason) => reason !== 'clickaway' && setNotice(null)}
+        // On phones the bottom holds the create button and the entry dialog's buttons.
+        anchorOrigin={compact ? { vertical: 'top', horizontal: 'center' } : undefined}
         message={notice?.text}
         action={
           <>
@@ -410,6 +414,9 @@ export function AppShell({ onOpenSettings, onOpenReports = () => {}, onLogout, a
                 Undo
               </Button>
             )}
+            <IconButton size="small" color="inherit" aria-label="Dismiss" onClick={() => setNotice(null)}>
+              <Close fontSize="small" />
+            </IconButton>
           </>
         }
       />
