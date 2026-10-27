@@ -115,12 +115,12 @@ export function EntryDialog({ draft, categories, titles, onSubmit, onDelete, onC
             autoFocus
           />
 
-          <Stack spacing={1}>
-            <DateTimeRangeEditor range={range} onChange={setRange} />
-            {draft.kind === 'create' && (
-              <PreviousEntryHint start={range.start} categories={categories} onStartFrom={(end) => setRange((r) => startFrom(r, end))} />
-            )}
-          </Stack>
+          {/* Between the title and the times, so the keyboard reaches "Start at" before the time fields (TE-8). */}
+          {draft.kind === 'create' && (
+            <PreviousEntryHint start={range.start} categories={categories} onStartFrom={(end) => setRange((r) => startFrom(r, end))} />
+          )}
+
+          <DateTimeRangeEditor range={range} onChange={setRange} />
 
           <CategorySelect value={categoryId} onChange={setCategoryId} categories={categories} />
 

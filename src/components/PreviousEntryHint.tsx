@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { format, isSameDay } from 'date-fns';
+import { useRef } from 'react';
 import type { Category } from '../../shared/types';
 import { usePreviousEntry } from '../hooks/data';
 import { UNCATEGORISED_COLOR } from '../lib/color';
@@ -17,6 +18,7 @@ type Props = {
 /** TE-8: when creating an entry, shows when the last one before it ended. */
 export function PreviousEntryHint({ start, categories, onStartFrom }: Props) {
   const { data: entry } = usePreviousEntry(start);
+  const rowRef = useRef<HTMLDivElement>(null);
   if (!entry) return null;
 
   const end = new Date(entry.end);
@@ -26,7 +28,8 @@ export function PreviousEntryHint({ start, categories, onStartFrom }: Props) {
     end < start ? `${formatDuration(end, start)} before` : end > start ? `overlaps by ${formatDuration(start, end)}` : 'right before';
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', minHeight: 30 }}>
+    // The button goes away once used; focus stays on this row so Tab carries on to the times instead of back to the top.
+    <Box ref={rowRef} tabIndex={-1} sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', minHeight: 30, outline: 'none' }}>
       <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
         <Box component="span" aria-hidden sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: color, flexShrink: 0 }} />
         <span>
@@ -34,7 +37,10 @@ export function PreviousEntryHint({ start, categories, onStartFrom }: Props) {
         </span>
       </Typography>
       {end.getTime() !== start.getTime() && (
-        <Button size="small" onClick={() => onStartFrom(end)}>
+        <Button size="small" onClick={() => {
+            rowRef.current?.focus();
+            onStartFrom(end);
+          }}>
           Start at {formatTime(end)}
         </Button>
       )}

@@ -107,7 +107,7 @@ There is one user, the owner, who uses the app from:
 | TE-5  | A start/stop timer for the activity happening now; stopping it creates an entry. The running timer is **stored server-side**, so a timer started on the phone can be seen and stopped on the desktop. |
 | TE-6  | Quick-add from a text input (e.g. `9-10:30 Deep work`). _(Nice to have)_                                                                                                                              |
 | TE-7  | All times are shown in `America/Toronto`, or the device timezone if that can be configured.                                                                                                           |
-| TE-8 | **Last entry:** when creating an entry, the editor shows the last entry before its start (title, category colour, when it ended and the gap, e.g. `Last entry: work, ended 9 am (30 min before)`; the date is added if it ended on another day). "Last" means the entry ending latest among those that start before the new one, so one still running counts. It follows the start as it changes. A **Start at 9 am** button moves the start to that end, keeping the end if it's still after the start (otherwise the duration). Not shown when editing. |
+| TE-8 | **Last entry:** when creating an entry, the editor shows the last entry before its start (title, category colour, when it ended and the gap, e.g. `Last entry: work, ended 9 am (30 min before)`; the date is added if it ended on another day). "Last" means the entry ending latest among those that start before the new one, so one still running counts. It follows the start as it changes. A **Start at 9 am** button moves the start to that end, keeping the end if it's still after the start (otherwise the duration). It sits **between the title and the date/time row**, so with the keyboard, Tab from the title reaches the button before the time fields; after the button is used, focus stays on the hint, so the next Tab goes to the start date. Not shown when editing. |
 
 ### 5.2a Categories
 
@@ -440,3 +440,4 @@ _None right now._
 | 2026-10-06 | TE-2: added a 2-day view (`x` / `4`, in place of Google Calendar's custom view) showing the previous and current day; the view dropdown shows each view's shortcut. |
 | 2026-10-25 | DT-6: a time typed without am/pm takes the am/pm of the current time, for start, end and timer times. |
 | 2026-10-26 | Added DT-11 (hour, minute and am/pm selects for times on phones). |
+| 2026-10-26 | TE-8: the last entry is shown between the title and the date/time row, so Tab reaches its button first. |

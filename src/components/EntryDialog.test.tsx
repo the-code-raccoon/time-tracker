@@ -212,6 +212,21 @@ describe('EntryDialog', () => {
       await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ start: iso('2026-10-05T09:00'), end: iso('2026-10-05T10:00') })));
     });
 
+    it('comes between the title and the times, so Tab reaches "Start at" first', async () => {
+      const { user } = setup(undefined, draft, [work]);
+      const startAt = await screen.findByRole('button', { name: 'Start at 9 am' });
+      const title = screen.getByRole('combobox', { name: 'Title' });
+      await user.type(title, 'journal');
+      await user.keyboard('{Escape}');
+      expect(title).toHaveFocus();
+      await user.tab();
+      expect(startAt).toHaveFocus();
+      await user.keyboard('{Enter}');
+      expect(field('Start time')).toHaveValue('9:00am');
+      await user.tab();
+      expect(field('Start date')).toHaveFocus();
+    });
+
     it('includes the date when the last entry ended on another day, and follows the start', async () => {
       const { user } = setup(undefined, draft, [makeEntry({ title: 'chill', start: iso('2026-10-04T20:00'), end: iso('2026-10-04T21:00') })]);
       expect(await screen.findByText(/ended Sun, Oct 4, 9 pm/)).toHaveTextContent('Last entry: chill, ended Sun, Oct 4, 9 pm (12 h 30 min before)');
