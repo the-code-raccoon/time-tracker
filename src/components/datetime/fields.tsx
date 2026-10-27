@@ -1,8 +1,17 @@
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import { addMinutes, startOfDay } from 'date-fns';
 import { formatDuration } from '../../lib/dates';
 import { formatDateLabel, formatDurationShort, formatTimeLabel, minutesOfDay, parseDateInput, parseDuration, parseTimeInput } from '../../lib/parse';
 import { MonthCalendar } from './MonthCalendar';
 import { PickerField, type PickerOption } from './PickerField';
+import { TimeSelects } from './TimeSelects';
+
+/** Phones get hour/minute/am-pm selects instead of a typed time (DT-11). */
+function usePhone() {
+  const theme = useTheme();
+  return useMediaQuery(theme.breakpoints.down('sm'));
+}
 
 const STEP = 15;
 
@@ -44,6 +53,8 @@ type TimeFieldProps = {
 
 /** Start time: every 15 minutes of the day. */
 export function TimeField({ value, onChange, ariaLabel, referenceMinutes, error }: TimeFieldProps) {
+  const phone = usePhone();
+  if (phone) return <TimeSelects value={minutesOfDay(value)} onChange={onChange} ariaLabel={ariaLabel} error={error} />;
   const day = startOfDay(value);
   const options: PickerOption<number>[] = Array.from({ length: (24 * 60) / STEP }, (_, i) => ({
     value: i * STEP,
@@ -81,6 +92,8 @@ type EndTimeFieldProps = {
 
 /** End time: the next 24 hours after the start, each with its duration, like Google Calendar. */
 export function EndTimeField({ start, end, onChangeTime, onChangeDuration, ariaLabel, referenceMinutes, error }: EndTimeFieldProps) {
+  const phone = usePhone();
+  if (phone) return <TimeSelects value={minutesOfDay(end)} onChange={onChangeTime} ariaLabel={ariaLabel} error={error} />;
   const options: PickerOption<number>[] = Array.from({ length: (24 * 60) / STEP }, (_, i) => ({
     value: i * STEP,
     label: formatTimeLabel(addMinutes(start, i * STEP)),

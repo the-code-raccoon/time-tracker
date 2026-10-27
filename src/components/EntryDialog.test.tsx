@@ -148,6 +148,37 @@ describe('EntryDialog', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
+  describe('on a phone (DT-11)', () => {
+    beforeEach(() => vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} })));
+    afterEach(() => vi.unstubAllGlobals());
+
+    const select = (name: string) => screen.getByRole('combobox', { name }) as HTMLSelectElement;
+
+    it('picks times with hour, minute and am/pm selects instead of typing', () => {
+      setup();
+      expect(screen.queryByRole('textbox', { name: 'Start time' })).not.toBeInTheDocument();
+      expect(select('Start time hour')).toHaveValue('9');
+      expect(select('Start time minute')).toHaveValue('30');
+      expect(select('Start time am/pm')).toHaveValue('am');
+      expect(select('End time hour')).toHaveValue('10');
+      expect([...select('Start time minute').options].map((o) => o.text)).toEqual(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']);
+    });
+
+    it('moves the start keeping the duration (DT-9), and sets the end on its own (DT-10)', async () => {
+      const { user, onSubmit } = setup();
+      await user.type(screen.getByRole('combobox', { name: 'Title' }), 'work');
+      await user.selectOptions(select('Start time am/pm'), 'pm');
+      expect(select('End time hour')).toHaveValue('10');
+      expect(select('End time am/pm')).toHaveValue('pm');
+      await user.selectOptions(select('End time minute'), '45');
+      expect(select('Start time minute')).toHaveValue('30');
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ start: new Date('2026-10-05T21:30').toISOString(), end: new Date('2026-10-05T22:45').toISOString() }),
+      );
+    });
+  });
+
   it('prefills a duplicated entry (CTX-4)', () => {
     setup(undefined, { ...draft, title: 'eat snack', categoryId: CATEGORIES[0].id, notes: 'apple' });
     expect(screen.getByRole('combobox', { name: 'Title' })).toHaveValue('eat snack');

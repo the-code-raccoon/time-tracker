@@ -145,6 +145,7 @@ The date and time controls in the entry editor copy Google Calendar's:
 | DT-8 | **Duration control:** a duration field (e.g. `30 min`, `1 h 30 min`) with quick presets (5, 10, 15, 30, 45 min, 1 h, 1 h 30 min, 2 h) that also accepts typing (`90`, `1:30`, `1h30`, `1.5h`). Setting it sets **end = start + duration**. Changing the end updates the duration shown. |
 | DT-9 | **Moving the start keeps the duration:** changing the start date or time moves the end by the same amount. Example: 9:30am–10:00am, change the start to 9:40am → 9:40am–10:10am. If the times are currently invalid (DT-7), the last valid duration is used. |
 | DT-10 | Changing the end date or time never moves the start. |
+| DT-11 | **Time selects on phones:** on a phone-width screen, every time field (start and end in the entry editor, and the timer's start) is three selects instead of a typed field, like Google Calendar's mobile app: **hour** (1–12), **minute** (00–55 in 5-minute steps) and **am/pm**. They are native selects, so the phone shows its own wheel picker and no keyboard opens. A time that isn't on a 5-minute step (e.g. an imported 9:07) keeps its minute as an extra option. DT-9 and DT-10 apply as usual; the end-time duration list (DT-4) is desktop only. |
 
 ### 5.2c Entry context menu
 
@@ -438,3 +439,4 @@ _None right now._
 | 2026-10-06 | Added CTX-7 (Move after previous entry in the entry menu). |
 | 2026-10-06 | TE-2: added a 2-day view (`x` / `4`, in place of Google Calendar's custom view) showing the previous and current day; the view dropdown shows each view's shortcut. |
 | 2026-10-25 | DT-6: a time typed without am/pm takes the am/pm of the current time, for start, end and timer times. |
+| 2026-10-26 | Added DT-11 (hour, minute and am/pm selects for times on phones). |
