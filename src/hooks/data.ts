@@ -77,14 +77,24 @@ export function useSearch(query: string) {
 
 type Times = { start: string; end: string };
 
+/** Applies new times to entry `id` in cached entry data, whether it is a list, a single entry or empty. */
+export function withTimes<T extends TimeEntry[] | TimeEntry | null | undefined>(data: T, id: string, times: Times): T {
+  if (Array.isArray(data)) return data.map((entry) => (entry.id === id ? { ...entry, ...times } : entry)) as T;
+  if (data && data.id === id) return { ...data, ...times } as T;
+  return data;
+}
+
 export function useEntryMutations() {
   const queryClient = useQueryClient();
   const onSuccess = useInvalidateAll();
 
-  /** Writes new times into every cached entry list, so a dropped entry stays where it was dropped (DRAG-5). */
+  /**
+   * Writes new times into every cached entry list, so a dropped entry stays where it was dropped (DRAG-5). Not every
+   * ['entries', ...] query holds a list: the previous-entry lookup (TE-8) caches a single entry or null.
+   */
   const setCachedTimes = (id: string, times: Times) =>
-    queryClient.setQueriesData<TimeEntry[]>({ queryKey: ['entries'] }, (entries) =>
-      entries?.map((entry) => (entry.id === id ? { ...entry, ...times } : entry)),
+    queryClient.setQueriesData<TimeEntry[] | TimeEntry | null>({ queryKey: ['entries'] }, (data) =>
+      withTimes(data, id, times),
     );
 
   const rescheduleMutation = useMutation({
